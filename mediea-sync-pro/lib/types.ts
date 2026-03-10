@@ -4,6 +4,7 @@ export interface Member {
   id: string;
   name: string;
   email?: string;
+  nim?: string;
   role: Role;
   created_at?: string;
 }

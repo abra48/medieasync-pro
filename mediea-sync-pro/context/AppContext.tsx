@@ -12,6 +12,7 @@ interface AppContextType {
   currentRole: Role;
   loading: boolean;
   signOut: () => Promise<void>;
+  updateProfile: (name: string, nim: string) => Promise<void>;
 
   // Members
   members: Member[];
@@ -168,6 +169,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+  };
+
+  const updateProfile = async (name: string, nim: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('members').update({ name, nim }).eq('id', user.id);
+    if (!error) {
+      setProfile(prev => prev ? { ...prev, name, nim } : prev);
+      await refreshMembers();
+    }
   };
 
   // --- Members CRUD ---
@@ -370,7 +380,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      user, profile, currentRole, loading, signOut,
+      user, profile, currentRole, loading, signOut, updateProfile,
       members, membersLoading, addMember, deleteMember, updateMemberRole, refreshMembers,
       tasks, tasksLoading, addTask, updateTaskStatus, updateTaskAssignee, updateTaskFile, refreshTasks,
       finances, financesLoading, addFinance, deleteFinance, refreshFinances,

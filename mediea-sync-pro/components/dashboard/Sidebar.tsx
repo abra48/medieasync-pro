@@ -1,15 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Infinity, ArrowLeft, LogOut, User } from 'lucide-react';
+import { Infinity, ArrowLeft, LogOut, User, Menu, X, Settings } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import ProgressBar from '@/components/ui/ProgressBar';
 import RoleBadge from '@/components/ui/RoleBadge';
+import ProfileEditModal from '@/components/modals/ProfileEditModal';
 
 export default function Sidebar() {
   const { profile, currentRole, signOut, tasks, members } = useAppContext();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -24,12 +28,13 @@ export default function Sidebar() {
   const efficiency = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const transparency = Math.min(100, fairness + 10);
 
-  return (
-    <aside className="w-72 min-h-screen bg-[#20202a] border-r border-white/5 flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto custom-scrollbar">
+  const sidebarContent = (
+    <>
       {/* Back button */}
       <Link
         href="/"
         className="flex items-center gap-2 px-5 py-3 text-xs font-semibold text-[#8c8c8e] hover:text-[#fafafa] hover:bg-white/5 transition-colors border-b border-white/5"
+        onClick={() => setMobileOpen(false)}
       >
         <ArrowLeft size={14} />
         KEMBALI KE BERANDA
@@ -47,19 +52,26 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* User Profile from DB */}
-        <div className="mt-4 rounded-xl bg-[#2c2c38] border border-white/10 p-3">
+        {/* User Profile from DB — clickable to open edit */}
+        <button
+          onClick={() => setProfileModalOpen(true)}
+          className="w-full mt-4 rounded-xl bg-[#2c2c38] border border-white/10 p-3 text-left hover:border-[#10b981]/30 transition-colors group"
+        >
           <div className="flex items-center gap-3 mb-2">
             <div className="h-9 w-9 rounded-full bg-[#10b981]/10 flex items-center justify-center text-sm font-bold text-[#10b981]">
               {profile?.name?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[#fafafa] truncate">{profile?.name || 'Loading...'}</p>
+              {profile?.nim && (
+                <p className="text-[10px] text-[#10b981]/70 truncate">NIM: {profile.nim}</p>
+              )}
               <p className="text-[10px] text-[#8c8c8e] truncate">{profile?.email || ''}</p>
             </div>
+            <Settings size={14} className="text-[#8c8c8e] group-hover:text-[#10b981] transition-colors shrink-0" />
           </div>
           <RoleBadge role={currentRole} size="md" />
-        </div>
+        </button>
       </div>
 
       {/* Progress indicators */}
@@ -90,7 +102,12 @@ export default function Sidebar() {
                   <div className="h-5 w-5 rounded-full bg-[#10b981]/10 flex items-center justify-center shrink-0">
                     <User size={10} className="text-[#10b981]" />
                   </div>
-                  <span className="text-sm font-semibold text-[#fafafa] truncate">{member.name}</span>
+                  <div className="min-w-0">
+                    <span className="text-sm font-semibold text-[#fafafa] truncate block">{member.name}</span>
+                    {member.nim && (
+                      <span className="text-[10px] text-[#8c8c8e]/60 truncate block">NIM: {member.nim}</span>
+                    )}
+                  </div>
                 </div>
                 {memberTasks.length > 0 ? (
                   memberTasks.map((task) => (
@@ -121,6 +138,51 @@ export default function Sidebar() {
         </button>
         <p className="text-[10px] text-[#8c8c8e]/50 text-center">Mediea Sync Pro v2.0.1</p>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger button — fixed top-left */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-40 p-2 rounded-lg bg-[#2c2c38] border border-white/10 text-[#fafafa] shadow-lg"
+        aria-label="Open menu"
+      >
+        <Menu size={20} />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — Desktop: always visible. Mobile: slide-in drawer */}
+      <aside
+        className={`
+          fixed md:sticky top-0 h-screen z-50
+          w-72 bg-[#20202a] border-r border-white/5 flex flex-col shrink-0 overflow-y-auto custom-scrollbar
+          transition-transform duration-300 ease-in-out
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
+        {/* Mobile close button */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden absolute top-3 right-3 p-1.5 rounded-lg text-[#8c8c8e] hover:text-[#fafafa] hover:bg-white/5 transition-colors z-10"
+          aria-label="Close menu"
+        >
+          <X size={18} />
+        </button>
+
+        {sidebarContent}
+      </aside>
+
+      {/* Profile Edit Modal */}
+      <ProfileEditModal isOpen={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
+    </>
   );
 }

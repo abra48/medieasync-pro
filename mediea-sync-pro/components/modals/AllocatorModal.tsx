@@ -65,7 +65,7 @@ export default function AllocatorModal() {
             >
               <option value="">-- Pilih Assignee (opsional) --</option>
               {members.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
+                <option key={m.id} value={m.id}>{m.name}{m.nim ? ` (${m.nim})` : ''}</option>
               ))}
             </select>
             <button

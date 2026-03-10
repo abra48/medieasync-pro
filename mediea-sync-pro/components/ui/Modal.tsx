@@ -35,7 +35,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className="bg-[#2c2c38] rounded-2xl border border-[#10b981]/20 shadow-2xl shadow-[#10b981]/5 w-full max-w-2xl max-h-[85vh] flex flex-col animate-modal-in">
+      <div className="bg-[#2c2c38] rounded-2xl border border-[#10b981]/20 shadow-2xl shadow-[#10b981]/5 w-full max-w-[90vw] md:max-w-2xl max-h-[80vh] flex flex-col animate-modal-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
           <h2 className="text-lg font-semibold text-[#fafafa]">{title}</h2>
           <button

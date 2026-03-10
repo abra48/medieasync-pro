@@ -175,6 +175,9 @@ export default function ScanModal() {
               </div>
               <div>
                 <p className="text-sm font-medium text-[#fafafa]">{member.name}</p>
+                {member.nim && (
+                  <p className="text-[10px] text-[#8c8c8e]/60">NIM: {member.nim}</p>
+                )}
                 {/* Ketua sees role dropdown, others see badge */}
                 {!isReadOnly ? (
                   <select
