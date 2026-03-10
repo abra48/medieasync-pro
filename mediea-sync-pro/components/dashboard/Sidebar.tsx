@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Infinity, ArrowLeft, LogOut } from 'lucide-react';
+import { Infinity, ArrowLeft, LogOut, User } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import ProgressBar from '@/components/ui/ProgressBar';
 import RoleBadge from '@/components/ui/RoleBadge';
 
 export default function Sidebar() {
-  const { profile, currentRole, signOut, tasks } = useAppContext();
+  const { profile, currentRole, signOut, tasks, members } = useAppContext();
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -63,7 +63,7 @@ export default function Sidebar() {
       </div>
 
       {/* Progress indicators */}
-      <div className="px-5 py-6 space-y-5 flex-1">
+      <div className="px-5 py-6 space-y-5">
         <div>
           <h3 className="text-[10px] font-semibold text-[#8c8c8e] uppercase tracking-widest mb-4">
             Indikator Kemahiran
@@ -73,6 +73,40 @@ export default function Sidebar() {
             <ProgressBar value={efficiency} label="⚡ Efisiensi" color="bg-[#3b82f6]" />
             <ProgressBar value={transparency} label="🔍 Transparansi" color="bg-[#f59e0b]" />
           </div>
+        </div>
+      </div>
+
+      {/* Workload Status Widget */}
+      <div className="px-5 pb-5 flex-1">
+        <h3 className="text-[10px] font-bold text-[#8c8c8e] uppercase tracking-widest mb-3">
+          Status Beban Kerja
+        </h3>
+        <div className="overflow-y-auto max-h-48 space-y-1.5 custom-scrollbar pr-1">
+          {members.map((member) => {
+            const memberTasks = tasks.filter(t => t.assignee_id === member.id || t.assignee_name === member.name);
+            return (
+              <div key={member.id} className="rounded-lg bg-white/5 border border-white/5 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 rounded-full bg-[#10b981]/10 flex items-center justify-center shrink-0">
+                    <User size={10} className="text-[#10b981]" />
+                  </div>
+                  <span className="text-sm font-semibold text-[#fafafa] truncate">{member.name}</span>
+                </div>
+                {memberTasks.length > 0 ? (
+                  memberTasks.map((task) => (
+                    <p key={task.id} className="text-xs text-[#8c8c8e] ml-7 mt-0.5 truncate">
+                      ↳ {task.task_name}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-xs text-[#8c8c8e]/50 ml-7 mt-0.5 italic">↳ Belum ada tugas</p>
+                )}
+              </div>
+            );
+          })}
+          {members.length === 0 && (
+            <p className="text-xs text-[#8c8c8e]/50 italic text-center py-3">Belum ada anggota</p>
+          )}
         </div>
       </div>
 

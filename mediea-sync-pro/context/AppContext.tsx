@@ -96,12 +96,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Auth Init ---
   useEffect(() => {
+    const ensureMemberProfile = async (u: User): Promise<Member | null> => {
+      // Check if member row already exists
+      const { data: existing } = await supabase.from('members').select('*').eq('id', u.id).single();
+      if (existing) return existing as Member;
+
+      // Extract name from Google metadata or email
+      const googleName =
+        u.user_metadata?.full_name ||
+        u.user_metadata?.name ||
+        u.email?.split('@')[0] ||
+        'Pengguna Baru';
+
+      // Determine role based on URL path: /join = anggota, normal = ketua
+      const isJoinPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/join');
+      const role = isJoinPath ? 'anggota' : 'ketua';
+
+      const { data: inserted, error } = await supabase
+        .from('members')
+        .insert({ id: u.id, name: googleName, email: u.email || null, role })
+        .select()
+        .single();
+
+      if (error) {
+        // If conflict (already inserted by another tab/listener), fetch it
+        if (error.code === '23505') {
+          const { data: refetched } = await supabase.from('members').select('*').eq('id', u.id).single();
+          return (refetched as Member) || null;
+        }
+        console.error('Failed to create member profile:', error.message);
+        return null;
+      }
+      return inserted as Member;
+    };
+
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
-        const { data } = await supabase.from('members').select('*').eq('id', user.id).single();
-        if (data) setProfile(data as Member);
+        const profile = await ensureMemberProfile(user);
+        if (profile) setProfile(profile);
       }
       setLoading(false);
     };
@@ -111,8 +145,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const u = session?.user || null;
       setUser(u);
       if (u) {
-        const { data } = await supabase.from('members').select('*').eq('id', u.id).single();
-        if (data) setProfile(data as Member);
+        const profile = await ensureMemberProfile(u);
+        if (profile) setProfile(profile);
       } else {
         setProfile(null);
       }
