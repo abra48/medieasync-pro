@@ -20,7 +20,9 @@ function JoinContent() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        // Redirect to login, preserving the join URL
+        // Store join intent so ensureMemberProfile() assigns 'anggota' role
+        // even after Google OAuth redirects away from /join
+        localStorage.setItem('mediea_join_pending', 'true');
         const redirectUrl = `/join${code ? `?code=${encodeURIComponent(code)}` : ''}`;
         router.replace(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
         return;

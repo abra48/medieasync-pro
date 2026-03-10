@@ -108,9 +108,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         u.email?.split('@')[0] ||
         'Pengguna Baru';
 
-      // Determine role based on URL path: /join = anggota, normal = ketua
-      const isJoinPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/join');
+      // Determine role: check localStorage join intent (set by /join page before OAuth redirect)
+      // AND current URL path for non-OAuth flows
+      const isJoinPath =
+        (typeof window !== 'undefined' && window.location.pathname.includes('/join')) ||
+        (typeof window !== 'undefined' && window.location.search.includes('code=')) ||
+        (typeof window !== 'undefined' && localStorage.getItem('mediea_join_pending') === 'true');
       const role = isJoinPath ? 'anggota' : 'ketua';
+
+      // Clear join intent after using it
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('mediea_join_pending');
+      }
 
       const { data: inserted, error } = await supabase
         .from('members')
@@ -164,9 +173,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- Members CRUD ---
   const refreshMembers = useCallback(async () => {
     setMembersLoading(true);
-    const { data } = await supabase.from('members').select('*').order('created_at', { ascending: true });
-    if (data) setMembers(data as Member[]);
-    setMembersLoading(false);
+    try {
+      const { data } = await supabase.from('members').select('*').order('created_at', { ascending: true });
+      if (data) setMembers(data as Member[]);
+    } catch (err) {
+      console.error('Failed to fetch members:', err);
+    } finally {
+      setMembersLoading(false);
+    }
   }, []);
 
   const addMember = async (name: string, role: Role, email?: string) => {
