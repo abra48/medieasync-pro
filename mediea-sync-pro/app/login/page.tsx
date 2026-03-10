@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Infinity, LogIn, UserPlus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { Role } from '@/lib/types';
+
 
 function LoginContent() {
   const router = useRouter();
@@ -15,7 +15,7 @@ function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<Role>('anggota');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -50,7 +50,7 @@ function LoginContent() {
         id: data.user.id,
         name: name.trim(),
         email,
-        role,
+        role: 'ketua',
       });
       if (profileError) {
         setError('Akun dibuat, namun gagal menyimpan profil: ' + profileError.message);
@@ -106,19 +106,7 @@ function LoginContent() {
                     className="w-full rounded-xl bg-[#1e252b] border border-white/10 px-4 py-2.5 text-sm text-[#fafafa] placeholder:text-[#8c8c8e]/50 focus:outline-none focus:border-[#10b981]/50 focus:ring-1 focus:ring-[#10b981]/20 transition-colors"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-[#8c8c8e] uppercase tracking-widest mb-1.5">Role / Jabatan</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as Role)}
-                    className="w-full rounded-xl bg-[#1e252b] border border-white/10 px-4 py-2.5 text-sm text-[#fafafa] focus:outline-none focus:border-[#10b981]/50 focus:ring-1 focus:ring-[#10b981]/20 transition-colors"
-                  >
-                    <option value="ketua">👑 Ketua</option>
-                    <option value="sekretaris">✒️ Sekretaris</option>
-                    <option value="bendahara">👛 Bendahara</option>
-                    <option value="anggota">👤 Anggota</option>
-                  </select>
-                </div>
+
               </>
             )}
 
