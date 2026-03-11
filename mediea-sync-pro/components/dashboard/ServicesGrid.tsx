@@ -20,16 +20,16 @@ import SOSModal from '@/components/modals/SOSModal';
 const modalComponents: Record<string, { component: React.ComponentType; title: string }> = {
   scan: { component: ScanModal, title: 'Pemindaian Anggota' },
   allocator: { component: AllocatorModal, title: 'Alokasi Beban Kerja' },
-  board: { component: BoardModal, title: 'Papan Sinkronisasi' },
-  darurat: { component: DaruratModal, title: 'Manajemen Krisis' },
-  kas: { component: KasModal, title: 'Manajemen Kas' },
-  pakem: { component: PakemModal, title: 'Papan Pakem' },
-  brankas: { component: BrankasModal, title: 'Brankas Tautan' },
-  draft: { component: DraftModal, title: 'Draft Surat' },
+  board: { component: BoardModal, title: 'Dasbor Progres' },
+  darurat: { component: DaruratModal, title: 'Realokasi Tugas' },
+  kas: { component: KasModal, title: 'Tata Kelola Anggaran' },
+  pakem: { component: PakemModal, title: 'Pedoman Penulisan' },
+  brankas: { component: BrankasModal, title: 'Repositori Literatur' },
+  draft: { component: DraftModal, title: 'Kompilasi Naskah' },
   jadwal: { component: JadwalModal, title: 'Jadwal Kegiatan' },
   report: { component: ReportModal, title: 'Laporan Periodik' },
-  colek: { component: ColekModal, title: 'Colek / Pengingat' },
-  sos: { component: SOSModal, title: 'SOS / Bantuan' },
+  colek: { component: ColekModal, title: 'Peringatan Kinerja' },
+  sos: { component: SOSModal, title: 'Dukungan Ekosistem' },
 };
 
 export default function ServicesGrid() {
@@ -41,8 +41,8 @@ export default function ServicesGrid() {
   return (
     <>
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-[#fafafa] mb-1">Layanan Sync Pro</h2>
-        <p className="text-sm text-[#8c8c8e]">12 fitur terintegrasi untuk manajemen kelas modern.</p>
+        <h2 className="text-xl font-bold text-[#fafafa] mb-1">Layanan Mediea Sync Pro</h2>
+        <p className="text-sm text-[#8c8c8e]">12 fitur terintegrasi untuk pengelolaan kelas secara profesional.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

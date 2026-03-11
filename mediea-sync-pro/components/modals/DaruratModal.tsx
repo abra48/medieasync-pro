@@ -36,14 +36,14 @@ export default function DaruratModal() {
       {!isReadOnly && (
         <div className="mb-6 rounded-xl bg-white/5 border border-white/5 p-4">
           <h3 className="text-sm font-semibold text-[#fafafa] mb-3 flex items-center gap-2">
-            <ArrowRightLeft size={16} className="text-[#10b981]" />Override Penugasan
+            <ArrowRightLeft size={16} className="text-[#10b981]" />Alih Tanggung Jawab Penugasan
           </h3>
           <div className="space-y-3">
             <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)}
               className="w-full rounded-lg bg-[#1e252b] border border-white/10 px-3 py-2 text-sm text-[#fafafa] focus:outline-none focus:border-[#10b981]/50">
               <option value="">-- Pilih tugas yang macet --</option>
               {stuckTasks.map((t) => (
-                <option key={t.id} value={t.id}>{t.task_name} ({t.assignee_name || 'unassigned'})</option>
+                <option key={t.id} value={t.id}>{t.task_name} ({t.assignee_name || 'belum ditugaskan'})</option>
               ))}
             </select>
             <select value={newAssigneeId} onChange={(e) => setNewAssigneeId(e.target.value)}
@@ -56,7 +56,7 @@ export default function DaruratModal() {
             <button onClick={handleOverride} disabled={!selectedTaskId || !newAssigneeId || submitting}
               className="rounded-lg bg-red-500/80 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
               {submitting ? <Loader2 size={14} className="animate-spin" /> : null}
-              ⚠️ Override Assignee
+              ⚠️ Alih Tanggung Jawab
             </button>
           </div>
         </div>

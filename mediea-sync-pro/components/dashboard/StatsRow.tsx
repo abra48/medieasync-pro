@@ -6,7 +6,7 @@ const stats = [
   { icon: <Users size={22} />, value: '10.000+', label: 'Ketua Tim Terbantu', color: 'from-[#10b981] to-[#059669]' },
   { icon: <ListChecks size={22} />, value: '50.000+', label: 'Tugas Terdelegasikan', color: 'from-[#3b82f6] to-[#2563eb]' },
   { icon: <TrendingUp size={22} />, value: '99.2%', label: 'Tingkat Transparansi', color: 'from-[#f59e0b] to-[#d97706]' },
-  { icon: <Award size={22} />, value: '4.9/5', label: 'Rating Kepuasan', color: 'from-[#8b5cf6] to-[#7c3aed]' },
+  { icon: <Award size={22} />, value: '4.9/5', label: 'Penilaian Kepuasan', color: 'from-[#8b5cf6] to-[#7c3aed]' },
 ];
 
 export default function StatsRow() {

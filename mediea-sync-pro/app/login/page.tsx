@@ -123,7 +123,7 @@ function LoginContent() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-semibold text-[#8c8c8e] uppercase tracking-widest mb-1.5">Password</label>
+              <label className="block text-[10px] font-semibold text-[#8c8c8e] uppercase tracking-widest mb-1.5">Kata Sandi</label>
               <input
                 type="password"
                 value={password}

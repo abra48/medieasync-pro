@@ -11,6 +11,15 @@
   --text-dim: #8c8c8e;
 }
 
+[data-theme="light"] {
+  --bg-main: #f5f5f5;
+  --bg-panel: #ffffff;
+  --bg-card: #e8e8ec;
+  --accent: #10b981;
+  --text-light: #1a1a2e;
+  --text-dim: #64748b;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -34,6 +43,13 @@ body {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,0.2);
+}
+
+[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+}
+[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25);
 }
 
 /* Modal animation */
@@ -119,3 +135,73 @@ body {
   background: rgba(16, 185, 129, 0.3);
   color: #fafafa;
 }
+
+/* =========================================
+   LIGHT THEME OVERRIDES
+   ========================================= */
+
+/* Main backgrounds */
+[data-theme="light"] .bg-\[\#1e252b\] { background-color: #f5f5f5 !important; }
+[data-theme="light"] .bg-\[\#20202a\] { background-color: #ffffff !important; }
+[data-theme="light"] .bg-\[\#2c2c38\] { background-color: #ffffff !important; }
+[data-theme="light"] .bg-\[\#191923\] { background-color: #f0f0f4 !important; }
+
+/* Text colors */
+[data-theme="light"] .text-\[\#fafafa\] { color: #1a1a2e !important; }
+[data-theme="light"] .text-\[\#8c8c8e\] { color: #64748b !important; }
+
+/* Borders */
+[data-theme="light"] .border-white\/5 { border-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .border-white\/10 { border-color: rgba(0,0,0,0.12) !important; }
+
+/* Backgrounds with opacity */
+[data-theme="light"] .bg-white\/5 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-white\/10 { background-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .bg-white\/60 { background-color: rgba(255,255,255,0.9) !important; }
+[data-theme="light"] .bg-white\/80 { background-color: rgba(255,255,255,0.95) !important; }
+
+/* Hover states */
+[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.06) !important; }
+[data-theme="light"] .hover\:text-\[\#fafafa\]:hover { color: #1a1a2e !important; }
+
+/* Input backgrounds */
+[data-theme="light"] .bg-\[\#1e252b\] input,
+[data-theme="light"] .bg-\[\#1e252b\] select,
+[data-theme="light"] .bg-\[\#1e252b\] textarea,
+[data-theme="light"] input.bg-\[\#1e252b\],
+[data-theme="light"] select.bg-\[\#1e252b\],
+[data-theme="light"] textarea.bg-\[\#1e252b\] {
+  background-color: #e8e8ec !important;
+  color: #1a1a2e !important;
+  border-color: rgba(0,0,0,0.12) !important;
+}
+
+/* Modal & Sidebar backgrounds in light */
+[data-theme="light"] .bg-black\/60 { background-color: rgba(0,0,0,0.3) !important; }
+
+/* Placeholder text */
+[data-theme="light"] .placeholder\:text-\[\#8c8c8e\]\/50::placeholder { color: rgba(100,116,139,0.5) !important; }
+
+/* Selection in light */
+[data-theme="light"] ::selection {
+  background: rgba(16, 185, 129, 0.2);
+  color: #1a1a2e;
+}
+
+/* Scrollbar in light */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.2);
+}
+
+/* Google login button stays white in dark, gets border in light */
+[data-theme="light"] .bg-white {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+/* Dark mockup sections on landing page stay dark */
+[data-theme="light"] .bg-\[\#a7f3d0\] { background-color: #a7f3d0 !important; }
+[data-theme="light"] .bg-\[\#ecfdf5\] { background-color: #ecfdf5 !important; }

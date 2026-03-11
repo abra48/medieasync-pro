@@ -85,12 +85,12 @@ function JoinContent() {
     success: {
       icon: <CheckCircle2 size={28} className="text-[#10b981]" />,
       title: 'Berhasil bergabung! 🎉',
-      subtitle: 'Mengalihkan ke dashboard...',
+      subtitle: 'Mengalihkan ke dasbor...',
     },
     already_member: {
       icon: <CheckCircle2 size={28} className="text-blue-400" />,
       title: 'Anda sudah terdaftar',
-      subtitle: 'Mengalihkan ke dashboard...',
+      subtitle: 'Mengalihkan ke dasbor...',
     },
     error: {
       icon: <XCircle size={28} className="text-red-400" />,
@@ -124,7 +124,7 @@ function JoinContent() {
             onClick={() => router.replace('/login')}
             className="mt-2 rounded-xl bg-[#10b981] px-5 py-2.5 text-sm font-bold text-black hover:bg-[#34d399] transition-colors"
           >
-            Kembali ke Login
+            Kembali ke Halaman Masuk
           </button>
         )}
       </div>
@@ -143,7 +143,7 @@ function JoinFallback() {
       </div>
       <div className="flex flex-col items-center text-center gap-4">
         <Loader2 size={28} className="animate-spin text-[#10b981]" />
-        <p className="text-sm text-[#8c8c8e]">Memuat...</p>
+        <p className="text-sm text-[#8c8c8e]">Memuat data...</p>
       </div>
     </div>
   );

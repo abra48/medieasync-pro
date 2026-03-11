@@ -81,7 +81,7 @@ export default function HomePage() {
                 href="/dashboard"
                 className="shimmer-btn inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-base font-bold text-black shadow-lg shadow-[#10b981]/25 hover:shadow-[#10b981]/40 transition-shadow pulse-glow"
               >
-                Masuk ke Dashboard
+                Masuk ke Dasbor
                 <ArrowRight size={18} />
               </Link>
             </div>
@@ -162,7 +162,7 @@ export default function HomePage() {
 
                 {/* Desktop Dashboard Mockup */}
                 <div className="rounded-2xl bg-[#ecfdf5] p-5 shadow-xl">
-                  <div className="text-xs font-semibold text-[#2c2c38]/60 mb-3 uppercase tracking-wider">Dashboard</div>
+                  <div className="text-xs font-semibold text-[#2c2c38]/60 mb-3 uppercase tracking-wider">Dasbor</div>
                   {/* Mini bar chart */}
                   <div className="flex items-end gap-2 h-20 mb-3">
                     <div className="flex-1 bg-[#10b981]/80 rounded-t-sm animate-bar" style={{ height: '60%' }} />
@@ -249,8 +249,8 @@ export default function HomePage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: <Users size={24} />, title: 'Manajemen Anggota', desc: 'Kelola struktur dan data tim dengan mudah.' },
-              { icon: <Zap size={24} />, title: 'Delegasi Cerdas', desc: 'Alokasi tugas otomatis dan transparan.' },
-              { icon: <BarChart3 size={24} />, title: 'Pantau Real-time', desc: 'Dashboard progres yang selalu up-to-date.' },
+              { icon: <Zap size={24} />, title: 'Delegasi Cerdas', desc: 'Alokasi tugas secara otomatis dan transparan.' },
+              { icon: <BarChart3 size={24} />, title: 'Pantau Waktu Nyata', desc: 'Dasbor progres yang senantiasa mutakhir.' },
               { icon: <Shield size={24} />, title: 'Akses Terkontrol', desc: 'RBAC untuk keamanan data organisasi.' },
             ].map((f, i) => (
               <div key={i} className="group rounded-2xl border border-white/5 bg-[#2c2c38] p-6 hover:border-[#10b981]/20 hover:bg-[#2c2c38]/80 transition-all duration-300">

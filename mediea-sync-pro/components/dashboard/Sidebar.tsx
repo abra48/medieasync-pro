@@ -3,17 +3,19 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Infinity, ArrowLeft, LogOut, User, Menu, X, Settings } from 'lucide-react';
+import { Infinity, ArrowLeft, LogOut, User, Menu, X, Settings, Sun, Moon } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import ProgressBar from '@/components/ui/ProgressBar';
 import RoleBadge from '@/components/ui/RoleBadge';
 import ProfileEditModal from '@/components/modals/ProfileEditModal';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function Sidebar() {
   const { profile, currentRole, signOut, tasks, members } = useAppContext();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const handleSignOut = async () => {
     await signOut();
@@ -48,7 +50,7 @@ export default function Sidebar() {
           </div>
           <div>
             <h2 className="text-sm font-bold text-[#fafafa]">Mediea Sync</h2>
-            <p className="text-xs text-[#8c8c8e]">Control Panel</p>
+            <p className="text-xs text-[#8c8c8e]">Panel Kontrol</p>
           </div>
         </div>
 
@@ -62,7 +64,7 @@ export default function Sidebar() {
               {profile?.name?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#fafafa] truncate">{profile?.name || 'Loading...'}</p>
+              <p className="text-sm font-semibold text-[#fafafa] truncate">{profile?.name || 'Memuat data...'}</p>
               {profile?.nim && (
                 <p className="text-[10px] text-[#10b981]/70 truncate">NIM: {profile.nim}</p>
               )}
@@ -130,11 +132,18 @@ export default function Sidebar() {
       {/* Sign Out */}
       <div className="px-5 py-4 border-t border-white/5 space-y-3">
         <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-xs font-semibold text-[#8c8c8e] hover:text-[#10b981] hover:border-[#10b981]/20 hover:bg-[#10b981]/5 transition-colors"
+        >
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          {theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
+        </button>
+        <button
           onClick={handleSignOut}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-xs font-semibold text-[#8c8c8e] hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-colors"
         >
           <LogOut size={14} />
-          Keluar
+          Akhiri Sesi
         </button>
         <p className="text-[10px] text-[#8c8c8e]/50 text-center">Mediea Sync Pro v2.0.1</p>
       </div>

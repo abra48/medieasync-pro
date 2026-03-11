@@ -121,7 +121,7 @@ export default function ScanModal() {
         <div className="mb-6 rounded-xl bg-white/5 border border-white/5 p-4">
           <h3 className="text-sm font-semibold text-[#fafafa] mb-3 flex items-center gap-2">
             <Link2 size={16} className="text-[#10b981]" />
-            Generate Invite Link
+            Buat Tautan Undangan
           </h3>
           <p className="text-xs text-[#8c8c8e] mb-3">
             Buat link undangan agar anggota baru bisa bergabung otomatis.
@@ -131,7 +131,7 @@ export default function ScanModal() {
             className="rounded-lg bg-[#10b981]/10 border border-[#10b981]/20 px-4 py-2 text-sm font-semibold text-[#10b981] hover:bg-[#10b981]/20 transition-colors flex items-center gap-2 mb-3"
           >
             <Link2 size={14} />
-            Generate Link Baru
+            Buat Tautan Baru
           </button>
           {inviteLink && (
             <div className="flex gap-2">
@@ -151,7 +151,7 @@ export default function ScanModal() {
                 }`}
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? 'Tersalin!' : 'Copy'}
+                {copied ? 'Tersalin!' : 'Salin Tautan'}
               </button>
             </div>
           )}

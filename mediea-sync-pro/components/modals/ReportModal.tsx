@@ -65,9 +65,9 @@ export default function ReportModal() {
       {!isReadOnly && (
         <div className="text-center">
           <button className="rounded-lg bg-[#10b981] px-6 py-2.5 text-sm font-semibold text-black hover:bg-[#34d399] transition-colors">
-            📥 Export Laporan (PDF)
+            📥 Ekspor Laporan (PDF)
           </button>
-          <p className="text-[10px] text-[#8c8c8e] mt-2">Data real-time dari database Supabase</p>
+          <p className="text-[10px] text-[#8c8c8e] mt-2">Data waktu nyata dari basis data Supabase</p>
         </div>
       )}
     </div>

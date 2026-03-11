@@ -74,7 +74,7 @@ export default function ProfileEditModal({ isOpen, onClose }: ProfileEditModalPr
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-[#8c8c8e] uppercase tracking-widest mb-1.5">Role Saat Ini</label>
+            <label className="block text-[10px] font-semibold text-[#8c8c8e] uppercase tracking-widest mb-1.5">Peran Saat Ini</label>
             <div className="mt-1">
               <RoleBadge role={profile?.role || 'anggota'} size="md" />
             </div>

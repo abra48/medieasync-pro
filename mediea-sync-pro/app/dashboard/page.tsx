@@ -12,8 +12,8 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           {/* Dashboard header */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-[#fafafa] mb-1">Dashboard</h1>
-            <p className="text-sm text-[#8c8c8e]">Selamat datang di panel kontrol Mediea Sync Pro.</p>
+            <h1 className="text-2xl font-bold text-[#fafafa] mb-1">Dasbor</h1>
+            <p className="text-sm text-[#8c8c8e]">Selamat datang di Panel Kontrol Mediea Sync Pro</p>
           </div>
 
           <StatsRow />

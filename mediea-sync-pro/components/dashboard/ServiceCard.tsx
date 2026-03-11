@@ -31,7 +31,7 @@ export default function ServiceCard({ service, onOpenModal }: ServiceCardProps) 
         onClick={onOpenModal}
         className="w-full rounded-xl bg-[#10b981]/10 border border-[#10b981]/20 px-4 py-2.5 text-xs font-bold text-[#10b981] uppercase tracking-wider hover:bg-[#10b981]/20 hover:border-[#10b981]/40 transition-all duration-200"
       >
-        Buka Modal
+        Buka Layanan
       </button>
     </div>
   );

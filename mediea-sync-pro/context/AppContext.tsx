@@ -222,9 +222,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- Tasks CRUD ---
   const refreshTasks = useCallback(async () => {
     setTasksLoading(true);
-    const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: true });
-    if (data) setTasks(data as Task[]);
-    setTasksLoading(false);
+    try {
+      const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: true });
+      if (data) setTasks(data as Task[]);
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+    } finally {
+      setTasksLoading(false);
+    }
   }, []);
 
   const addTask = async (taskName: string, assigneeId: string | null, assigneeName: string) => {
@@ -256,9 +261,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- Finances CRUD ---
   const refreshFinances = useCallback(async () => {
     setFinancesLoading(true);
-    const { data } = await supabase.from('finances').select('*').order('created_at', { ascending: true });
-    if (data) setFinances(data as Finance[]);
-    setFinancesLoading(false);
+    try {
+      const { data } = await supabase.from('finances').select('*').order('created_at', { ascending: true });
+      if (data) setFinances(data as Finance[]);
+    } catch (err) {
+      console.error('Failed to fetch finances:', err);
+    } finally {
+      setFinancesLoading(false);
+    }
   }, []);
 
   const addFinance = async (itemName: string, price: number) => {
@@ -278,15 +288,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- Project Settings CRUD ---
   const refreshSettings = useCallback(async () => {
     setSettingsLoading(true);
-    const { data } = await supabase.from('project_settings').select('*').limit(1).single();
-    if (data) {
-      setProjectSettings({
-        id: data.id,
-        rules: Array.isArray(data.rules) ? data.rules : [],
-        links: Array.isArray(data.links) ? data.links : [],
-      });
+    try {
+      const { data } = await supabase.from('project_settings').select('*').limit(1).single();
+      if (data) {
+        setProjectSettings({
+          id: data.id,
+          rules: Array.isArray(data.rules) ? data.rules : [],
+          links: Array.isArray(data.links) ? data.links : [],
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    } finally {
+      setSettingsLoading(false);
     }
-    setSettingsLoading(false);
   }, []);
 
   const addRule = async (rule: string) => {
@@ -316,9 +331,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- Schedules CRUD ---
   const refreshSchedules = useCallback(async () => {
     setSchedulesLoading(true);
-    const { data } = await supabase.from('schedules').select('*').order('date', { ascending: true });
-    if (data) setSchedules(data as Schedule[]);
-    setSchedulesLoading(false);
+    try {
+      const { data } = await supabase.from('schedules').select('*').order('date', { ascending: true });
+      if (data) setSchedules(data as Schedule[]);
+    } catch (err) {
+      console.error('Failed to fetch schedules:', err);
+    } finally {
+      setSchedulesLoading(false);
+    }
   }, []);
 
   const addSchedule = async (date: string, event: string) => {
@@ -334,9 +354,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- Reminders CRUD ---
   const refreshReminders = useCallback(async () => {
     setRemindersLoading(true);
-    const { data } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
-    if (data) setReminders(data as Reminder[]);
-    setRemindersLoading(false);
+    try {
+      const { data } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
+      if (data) setReminders(data as Reminder[]);
+    } catch (err) {
+      console.error('Failed to fetch reminders:', err);
+    } finally {
+      setRemindersLoading(false);
+    }
   }, []);
 
   const addReminder = async (toName: string, message: string) => {
@@ -351,9 +376,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- SOS CRUD ---
   const refreshSOS = useCallback(async () => {
     setSosLoading(true);
-    const { data } = await supabase.from('sos_messages').select('*').order('created_at', { ascending: false });
-    if (data) setSosMessages(data as SOSMessage[]);
-    setSosLoading(false);
+    try {
+      const { data } = await supabase.from('sos_messages').select('*').order('created_at', { ascending: false });
+      if (data) setSosMessages(data as SOSMessage[]);
+    } catch (err) {
+      console.error('Failed to fetch SOS messages:', err);
+    } finally {
+      setSosLoading(false);
+    }
   }, []);
 
   const addSOS = async (fromName: string, message: string) => {
@@ -365,17 +395,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!error) await refreshSOS();
   };
 
-  // --- Initial Data Load (after auth) ---
+  // --- Initial Data Load (after auth) + Realtime Subscriptions ---
   useEffect(() => {
-    if (user) {
-      refreshMembers();
-      refreshTasks();
-      refreshFinances();
-      refreshSettings();
-      refreshSchedules();
-      refreshReminders();
-      refreshSOS();
-    }
+    if (!user) return;
+
+    // Initial fetch
+    refreshMembers();
+    refreshTasks();
+    refreshFinances();
+    refreshSettings();
+    refreshSchedules();
+    refreshReminders();
+    refreshSOS();
+
+    // Supabase Realtime: auto-sync members, tasks, finances across all clients
+    const channel = supabase
+      .channel('realtime-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'members' },
+        () => { refreshMembers(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        () => { refreshTasks(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'finances' },
+        () => { refreshFinances(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, refreshMembers, refreshTasks, refreshFinances, refreshSettings, refreshSchedules, refreshReminders, refreshSOS]);
 
   return (
