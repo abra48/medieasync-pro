@@ -113,18 +113,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // AND current URL path for non-OAuth flows
       const isJoinPath =
         (typeof window !== 'undefined' && window.location.pathname.includes('/join')) ||
-        (typeof window !== 'undefined' && window.location.search.includes('code=')) ||
+        (typeof window !== 'undefined' && window.location.search.includes('ref=')) ||
         (typeof window !== 'undefined' && localStorage.getItem('mediea_join_pending') === 'true');
       const role = isJoinPath ? 'anggota' : 'ketua';
+
+      // Resolve invited_by from URL ref param or localStorage
+      let invitedBy: string | null = null;
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        invitedBy = urlParams.get('ref') || localStorage.getItem('mediea_join_ref') || null;
+      }
 
       // Clear join intent after using it
       if (typeof window !== 'undefined') {
         localStorage.removeItem('mediea_join_pending');
+        localStorage.removeItem('mediea_join_ref');
       }
 
       const { data: inserted, error } = await supabase
         .from('members')
-        .insert({ id: u.id, name: googleName, email: u.email || null, role })
+        .insert({ id: u.id, name: googleName, email: u.email || null, role, invited_by: invitedBy })
         .select()
         .single();
 
@@ -187,16 +195,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Members CRUD ---
   const refreshMembers = useCallback(async () => {
+    if (!user) return;
     setMembersLoading(true);
     try {
-      const { data } = await supabase.from('members').select('*').order('created_at', { ascending: true });
+      const { data } = await supabase.from('members').select('*')
+        .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
+        .order('created_at', { ascending: true });
       if (data) setMembers(data as Member[]);
     } catch (err) {
       console.error('Failed to fetch members:', err);
     } finally {
       setMembersLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const addMember = async (name: string, role: Role, email?: string) => {
     try {
@@ -205,6 +216,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name,
         role,
         email: email || null,
+        invited_by: user?.id || null,
       });
     } catch (err) {
       console.error('Failed to add member:', err);
@@ -236,16 +248,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Tasks CRUD ---
   const refreshTasks = useCallback(async () => {
+    if (!user) return;
     setTasksLoading(true);
     try {
-      const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: true });
+      const { data } = await supabase.from('tasks').select('*')
+        .eq('invited_by', user.id)
+        .order('created_at', { ascending: true });
       if (data) setTasks(data as Task[]);
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
     } finally {
       setTasksLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const addTask = async (taskName: string, assigneeId: string | null, assigneeName: string) => {
     try {
@@ -255,6 +270,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         assignee_name: assigneeName,
         status: 'Belum Dikerjakan',
         file_url: '',
+        invited_by: user?.id || null,
       });
     } catch (err) {
       console.error('Failed to add task:', err);
@@ -295,16 +311,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Finances CRUD ---
   const refreshFinances = useCallback(async () => {
+    if (!user) return;
     setFinancesLoading(true);
     try {
-      const { data } = await supabase.from('finances').select('*').order('created_at', { ascending: true });
+      const { data } = await supabase.from('finances').select('*')
+        .eq('invited_by', user.id)
+        .order('created_at', { ascending: false });
       if (data) setFinances(data as Finance[]);
     } catch (err) {
       console.error('Failed to fetch finances:', err);
     } finally {
       setFinancesLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const addFinance = async (itemName: string, price: number) => {
     try {
@@ -312,6 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         item_name: itemName,
         price,
         created_by: user?.id || null,
+        invited_by: user?.id || null,
       });
     } catch (err) {
       console.error('Failed to add finance:', err);

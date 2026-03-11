@@ -28,7 +28,7 @@ const roleOptions: { value: Role; label: string }[] = [
 ];
 
 export default function ScanModal() {
-  const { currentRole, members, membersLoading, addMember, deleteMember, updateMemberRole } = useAppContext();
+  const { currentRole, user, members, membersLoading, addMember, deleteMember, updateMemberRole } = useAppContext();
   const isReadOnly = currentRole !== 'ketua';
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('anggota');
@@ -54,8 +54,7 @@ export default function ScanModal() {
   };
 
   const generateInviteLink = () => {
-    const randomCode = Math.random().toString(36).substring(2, 10);
-    const link = `${window.location.origin}/join?code=mediea-sync-${randomCode}`;
+    const link = `${window.location.origin}/join?ref=${user?.id}`;
     setInviteLink(link);
     setCopied(false);
   };

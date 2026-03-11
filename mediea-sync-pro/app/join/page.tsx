@@ -10,12 +10,17 @@ type JoinStatus = 'checking' | 'joining' | 'success' | 'already_member' | 'error
 function JoinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const code = searchParams.get('code') || '';
+  const ref = searchParams.get('ref') || '';
   const [status, setStatus] = useState<JoinStatus>('checking');
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     const processJoin = async () => {
+      // Persist ref (Ketua ID) so it survives OAuth redirects
+      if (ref) {
+        localStorage.setItem('mediea_join_ref', ref);
+      }
+
       // 1. Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -23,7 +28,7 @@ function JoinContent() {
         // Store join intent so ensureMemberProfile() assigns 'anggota' role
         // even after Google OAuth redirects away from /join
         localStorage.setItem('mediea_join_pending', 'true');
-        const redirectUrl = `/join${code ? `?code=${encodeURIComponent(code)}` : ''}`;
+        const redirectUrl = `/join${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
         router.replace(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
         return;
       }
@@ -39,11 +44,15 @@ function JoinContent() {
       if (existingMember) {
         // Already a member, just redirect
         setStatus('already_member');
+        localStorage.removeItem('mediea_join_ref');
         setTimeout(() => router.replace('/dashboard'), 1500);
         return;
       }
 
-      // 3. Insert new member with default role 'anggota'
+      // 3. Resolve the Ketua ID who invited this member
+      const refId = ref || localStorage.getItem('mediea_join_ref') || null;
+
+      // 4. Insert new member with default role 'anggota' and invited_by
       const displayName =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
@@ -55,7 +64,11 @@ function JoinContent() {
         name: displayName,
         email: user.email || null,
         role: 'anggota',
+        invited_by: refId,
       });
+
+      // Clean up localStorage
+      localStorage.removeItem('mediea_join_ref');
 
       if (error) {
         setStatus('error');

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS members (
   name TEXT NOT NULL,
   email TEXT,
   role TEXT NOT NULL DEFAULT 'anggota' CHECK (role IN ('ketua', 'sekretaris', 'bendahara', 'anggota')),
+  invited_by TEXT,  -- ID of the Ketua who invited this member (multi-tenant isolation)
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   assignee_name TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'Belum Dikerjakan' CHECK (status IN ('Belum Dikerjakan', 'Menunggu Konfirmasi', 'Selesai')),
   file_url TEXT DEFAULT '',
+  invited_by TEXT,  -- ID of the Ketua who owns this task (multi-tenant isolation)
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -29,6 +31,7 @@ CREATE TABLE IF NOT EXISTS finances (
   item_name TEXT NOT NULL,
   price BIGINT NOT NULL DEFAULT 0,
   created_by UUID REFERENCES members(id) ON DELETE SET NULL,
+  invited_by TEXT,  -- ID of the Ketua who owns this finance entry (multi-tenant isolation)
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

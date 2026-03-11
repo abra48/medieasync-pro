@@ -6,6 +6,7 @@ export interface Member {
   email?: string;
   nim?: string;
   role: Role;
+  invited_by?: string;
   created_at?: string;
 }
 
@@ -18,6 +19,7 @@ export interface Task {
   assignee_name: string;
   status: TaskStatus;
   file_url: string;
+  invited_by?: string;
   created_at?: string;
 }
 
@@ -26,6 +28,7 @@ export interface Finance {
   item_name: string;
   price: number;
   created_by?: string;
+  invited_by?: string;
   created_at?: string;
 }
 
