@@ -357,7 +357,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFinancesLoading(true);
     try {
       const { data } = await supabase.from('finances').select('*')
-        .or(`invited_by.eq.${user.id},created_by.eq.${user.id}`)
+        .eq('invited_by', user.id)
         .order('created_at', { ascending: false });
       if (data) setFinances(data as Finance[]);
     } catch (err) {
@@ -560,7 +560,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('warnings').insert({
         member_name: memberName,
         issue,
-        status: 'Aktif',
+        status: 'Belum Diselesaikan',
         invited_by: user.id,
       });
       if (error) throw new Error(error.message);
