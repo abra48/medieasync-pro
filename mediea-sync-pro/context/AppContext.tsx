@@ -79,28 +79,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Data State ---
   const [members, setMembers] = useState<Member[]>([]);
-  const [membersLoading, setMembersLoading] = useState(true);
+  const [membersLoading, setMembersLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [finances, setFinances] = useState<Finance[]>([]);
-  const [financesLoading, setFinancesLoading] = useState(true);
+  const [financesLoading, setFinancesLoading] = useState(false);
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>(emptySettings);
-  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [schedulesLoading, setSchedulesLoading] = useState(true);
+  const [schedulesLoading, setSchedulesLoading] = useState(false);
   const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [remindersLoading, setRemindersLoading] = useState(true);
+  const [remindersLoading, setRemindersLoading] = useState(false);
   const [sosMessages, setSosMessages] = useState<SOSMessage[]>([]);
-  const [sosLoading, setSosLoading] = useState(true);
+  const [sosLoading, setSosLoading] = useState(false);
 
   const currentRole: Role = profile?.role || 'anggota';
 
   // --- Auth Init ---
+  // Helper: Always fetch profile from members table to get the real role
+  const fetchMemberProfile = useCallback(async (userId: string): Promise<Member | null> => {
+    const { data } = await supabase.from('members').select('*').eq('id', userId).single();
+    return (data as Member) || null;
+  }, []);
+
   useEffect(() => {
     const ensureMemberProfile = async (u: User): Promise<Member | null> => {
-      // Check if member row already exists
-      const { data: existing } = await supabase.from('members').select('*').eq('id', u.id).single();
-      if (existing) return existing as Member;
+      // Always try to fetch existing profile from DB first
+      const existing = await fetchMemberProfile(u.id);
+      if (existing) return existing;
 
       // Extract name from Google metadata or email
       const googleName =
@@ -139,8 +145,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error) {
         // If conflict (already inserted by another tab/listener), fetch it
         if (error.code === '23505') {
-          const { data: refetched } = await supabase.from('members').select('*').eq('id', u.id).single();
-          return (refetched as Member) || null;
+          const refetched = await fetchMemberProfile(u.id);
+          return refetched;
         }
         console.error('Failed to create member profile:', error.message);
         return null;
@@ -150,11 +156,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const init = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-        if (user) {
-          const profile = await ensureMemberProfile(user);
-          if (profile) setProfile(profile);
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          setUser(authUser);
+          const memberProfile = await ensureMemberProfile(authUser);
+          if (memberProfile) setProfile(memberProfile);
+        } else {
+          setUser(null);
+          setProfile(null);
         }
       } catch (err) {
         console.error('Auth init failed:', err);
@@ -168,15 +177,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const u = session?.user || null;
       setUser(u);
       if (u) {
-        const profile = await ensureMemberProfile(u);
-        if (profile) setProfile(profile);
+        // ALWAYS re-fetch profile from members table to get the real role
+        const memberProfile = await fetchMemberProfile(u.id);
+        if (memberProfile) {
+          setProfile(memberProfile);
+        } else {
+          // Profile doesn't exist yet (new user via OAuth), create it
+          const newProfile = await ensureMemberProfile(u);
+          if (newProfile) setProfile(newProfile);
+        }
       } else {
         setProfile(null);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchMemberProfile]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -210,16 +226,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const addMember = async (name: string, role: Role, email?: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      await supabase.from('members').insert({
+      const { error } = await supabase.from('members').insert({
         id: crypto.randomUUID(),
         name,
         role,
         email: email || null,
-        invited_by: user?.id || null,
+        invited_by: user.id,
       });
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to add member:', err);
+      alert('Gagal menambah anggota: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshMembers();
     }
@@ -227,9 +246,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteMember = async (id: string) => {
     try {
-      await supabase.from('members').delete().eq('id', id);
+      const { error } = await supabase.from('members').delete().eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to delete member:', err);
+      alert('Gagal menghapus anggota: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshMembers();
     }
@@ -238,9 +259,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateMemberRole = async (id: string, newRole: Role) => {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
     try {
-      await supabase.from('members').update({ role: newRole }).eq('id', id);
+      const { error } = await supabase.from('members').update({ role: newRole }).eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to update member role:', err);
+      alert('Gagal mengubah role: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshMembers();
     }
@@ -252,7 +275,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTasksLoading(true);
     try {
       const { data } = await supabase.from('tasks').select('*')
-        .eq('invited_by', user.id)
+        .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
         .order('created_at', { ascending: true });
       if (data) setTasks(data as Task[]);
     } catch (err) {
@@ -263,17 +286,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const addTask = async (taskName: string, assigneeId: string | null, assigneeName: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      await supabase.from('tasks').insert({
+      const { error } = await supabase.from('tasks').insert({
         task_name: taskName,
         assignee_id: assigneeId,
         assignee_name: assigneeName,
         status: 'Belum Dikerjakan',
         file_url: '',
-        invited_by: user?.id || null,
+        invited_by: user.id,
       });
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to add task:', err);
+      alert('Gagal menambah tugas: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshTasks();
     }
@@ -281,9 +307,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateTaskStatus = async (id: string, status: TaskStatus) => {
     try {
-      await supabase.from('tasks').update({ status }).eq('id', id);
+      const { error } = await supabase.from('tasks').update({ status }).eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to update task status:', err);
+      alert('Gagal mengubah status tugas: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshTasks();
     }
@@ -291,9 +319,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateTaskAssignee = async (id: string, assigneeId: string | null, assigneeName: string) => {
     try {
-      await supabase.from('tasks').update({ assignee_id: assigneeId, assignee_name: assigneeName }).eq('id', id);
+      const { error } = await supabase.from('tasks').update({ assignee_id: assigneeId, assignee_name: assigneeName }).eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to update task assignee:', err);
+      alert('Gagal mengubah penanggung jawab: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshTasks();
     }
@@ -301,9 +331,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateTaskFile = async (id: string, fileUrl: string) => {
     try {
-      await supabase.from('tasks').update({ file_url: fileUrl, status: 'Menunggu Konfirmasi' }).eq('id', id);
+      const { error } = await supabase.from('tasks').update({ file_url: fileUrl, status: 'Menunggu Konfirmasi' }).eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to update task file:', err);
+      alert('Gagal mengunggah berkas: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshTasks();
     }
@@ -315,7 +347,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFinancesLoading(true);
     try {
       const { data } = await supabase.from('finances').select('*')
-        .eq('invited_by', user.id)
+        .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
         .order('created_at', { ascending: false });
       if (data) setFinances(data as Finance[]);
     } catch (err) {
@@ -326,15 +358,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const addFinance = async (itemName: string, price: number) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      await supabase.from('finances').insert({
+      const { error } = await supabase.from('finances').insert({
         item_name: itemName,
         price,
-        created_by: user?.id || null,
-        invited_by: user?.id || null,
+        created_by: user.id,
+        invited_by: user.id,
       });
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to add finance:', err);
+      alert('Gagal menambah pengeluaran: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshFinances();
     }
@@ -342,9 +377,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteFinance = async (id: string) => {
     try {
-      await supabase.from('finances').delete().eq('id', id);
+      const { error } = await supabase.from('finances').delete().eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to delete finance:', err);
+      alert('Gagal menghapus pengeluaran: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshFinances();
     }
