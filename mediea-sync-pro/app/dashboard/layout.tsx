@@ -1,20 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppProvider, useAppContext } from '@/context/AppContext';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAppContext();
   const router = useRouter();
+  const [timedOut, setTimedOut] = useState(false);
+
+  // Fail-safe: force loading=false after 3 seconds to prevent infinite loading
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
-    if (!loading && !user) {
+    const isReady = !loading || timedOut;
+    if (isReady && !user) {
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [user, loading, timedOut, router]);
 
-  if (loading) {
+  // Show loading only if still within timeout window
+  if (loading && !timedOut) {
     return (
       <div className="min-h-screen bg-[#1e252b] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

@@ -141,13 +141,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
 
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        const profile = await ensureMemberProfile(user);
-        if (profile) setProfile(profile);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+        if (user) {
+          const profile = await ensureMemberProfile(user);
+          if (profile) setProfile(profile);
+        }
+      } catch (err) {
+        console.error('Auth init failed:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     init();
 
