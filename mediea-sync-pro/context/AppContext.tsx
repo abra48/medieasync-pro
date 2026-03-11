@@ -102,6 +102,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const currentRole: Role = profile?.role || 'anggota';
 
+  // Group owner ID: ketua uses own ID, others use their invited_by (the ketua's UUID)
+  // This ensures all members in the same group see the same data
+  const groupOwnerId: string | undefined = profile?.role === 'ketua' ? user?.id ?? undefined : profile?.invited_by ?? undefined;
+
   // Keep refs in sync with state (for use in event listeners to avoid stale closures)
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { profileRef.current = profile; }, [profile]);
@@ -228,15 +232,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // MEMBERS CRUD (combined: members + anggota_manual)
   // =============================================
   const refreshMembers = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setMembersLoading(true);
     try {
       const { data: authMembers } = await supabase.from('members').select('*')
-        .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
+        .or(`invited_by.eq.${groupOwnerId},id.eq.${groupOwnerId}`)
         .order('created_at', { ascending: true });
 
       const { data: manualMembers } = await supabase.from('anggota_manual').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
 
       const mappedManual: Member[] = (manualMembers || []).map((m: Record<string, unknown>) => ({
         id: m.id as string,
@@ -252,7 +256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setMembersLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addMember = async (name: string, role: Role) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -260,7 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('anggota_manual').insert({
         nama: name,
         peran: role,
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
@@ -306,11 +310,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // TASKS CRUD (tabel: tasks — kolom: title, assignee_name, status, invited_by)
   // =============================================
   const refreshTasks = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setTasksLoading(true);
     try {
       const { data, error } = await supabase.from('tasks').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
       if (error) { console.error('Fetch tasks error:', error.message); return; }
       if (data) setTasks(data as Task[]);
     } catch (err) {
@@ -318,7 +322,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setTasksLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addTask = async (taskName: string, assigneeName: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -327,7 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         task_name: taskName,
         assignee_name: assigneeName,
         status: 'Belum Dikerjakan',
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
@@ -366,11 +370,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // FINANCES CRUD (tabel: finances — kolom: item_name, price, invited_by)
   // =============================================
   const refreshFinances = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setFinancesLoading(true);
     try {
       const { data, error } = await supabase.from('finances').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
       if (error) { console.error('Fetch finances error:', error.message); return; }
       if (data) setFinances(data as Finance[]);
     } catch (err) {
@@ -378,7 +382,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setFinancesLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addFinance = async (itemName: string, price: number) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -386,7 +390,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('finances').insert({
         item_name: itemName,
         price,
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
@@ -413,11 +417,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // LITERATURES CRUD (tabel: literatures — kolom: title, link_url, invited_by)
   // =============================================
   const refreshLiteratures = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setLiteraturesLoading(true);
     try {
       const { data, error } = await supabase.from('literatures').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
       if (error) { console.error('Fetch literatures error:', error.message); return; }
       if (data) setLiteratures(data as Literature[]);
     } catch (err) {
@@ -425,7 +429,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setLiteraturesLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addLiterature = async (title: string, linkUrl: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -433,7 +437,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('literatures').insert({
         title,
         link_url: linkUrl,
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
@@ -460,11 +464,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // SCHEDULES CRUD (tabel: schedules — kolom: event_name, event_date, description, invited_by)
   // =============================================
   const refreshSchedules = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setSchedulesLoading(true);
     try {
       const { data, error } = await supabase.from('schedules').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
       if (error) { console.error('Fetch schedules error:', error.message); return; }
       if (data) setSchedules(data as Schedule[]);
     } catch (err) {
@@ -472,7 +476,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setSchedulesLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addSchedule = async (eventName: string, eventDate: string, description?: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -481,7 +485,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         event_name: eventName,
         event_date: eventDate,
         description: description || '',
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
@@ -508,11 +512,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // GUIDELINES CRUD (tabel: guidelines — kolom: title, content, invited_by)
   // =============================================
   const refreshGuidelines = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setGuidelinesLoading(true);
     try {
       const { data, error } = await supabase.from('guidelines').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
       if (error) { console.error('Fetch guidelines error:', error.message); return; }
       if (data) setGuidelines(data as Guideline[]);
     } catch (err) {
@@ -520,7 +524,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setGuidelinesLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addGuideline = async (title: string, content: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -528,7 +532,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('guidelines').insert({
         title,
         content,
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
@@ -555,11 +559,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // WARNINGS CRUD (tabel: warnings — kolom: member_name, issue, status, invited_by)
   // =============================================
   const refreshWarnings = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setWarningsLoading(true);
     try {
       const { data, error } = await supabase.from('warnings').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
       if (error) { console.error('Fetch warnings error:', error.message); return; }
       if (data) setWarnings(data as Warning[]);
     } catch (err) {
@@ -567,7 +571,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setWarningsLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addWarning = async (memberName: string, issue: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -576,7 +580,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         member_name: memberName,
         issue,
         status: 'Belum Diselesaikan',
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
@@ -591,11 +595,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // SOS CRUD
   // =============================================
   const refreshSOS = useCallback(async () => {
-    if (!user) return;
+    if (!user || !groupOwnerId) return;
     setSosLoading(true);
     try {
       const { data, error } = await supabase.from('sos_messages').select('*')
-        .eq('invited_by', user.id);
+        .eq('invited_by', groupOwnerId);
       if (error) { console.error('Fetch SOS error:', error.message); return; }
       if (data) setSosMessages(data as SOSMessage[]);
     } catch (err) {
@@ -603,7 +607,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setSosLoading(false);
     }
-  }, [user]);
+  }, [user, groupOwnerId]);
 
   const addSOS = async (fromName: string, message: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
@@ -612,7 +616,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         from_name: fromName,
         message,
         sent_by: user.id,
-        invited_by: user.id,
+        invited_by: groupOwnerId,
       });
       if (error) throw new Error(error.message);
     } catch (err) {
