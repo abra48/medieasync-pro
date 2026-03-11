@@ -254,6 +254,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.from('members').update({ name, nim }).eq('id', user.id);
       if (error) throw new Error(error.message);
+
+      // Also update name in anggota_link if this user has a record there (joined via invite link)
+      if (user.email) {
+        await supabase.from('anggota_link').update({ nama: name }).eq('email', user.email);
+      }
+
       setProfile(prev => prev ? { ...prev, name, nim } : prev);
       await refreshMembers();
     } catch (err) {
@@ -303,8 +309,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         created_at: m.created_at as string | undefined,
       }));
 
-      // Combine all three sources
-      const combined = [...(authMembers as Member[] || []), ...mappedManual, ...mappedLink];
+      // Deduplicate: remove anggota_link entries whose email already exists in authMembers
+      // This prevents duplicate entries for members who exist in both tables
+      const authEmails = new Set(
+        (authMembers || []).map((m: Record<string, unknown>) => m.email as string).filter(Boolean)
+      );
+      const dedupedLink = mappedLink.filter(m => !m.email || !authEmails.has(m.email));
+
+      // Combine all three sources (deduplicated)
+      const combined = [...(authMembers as Member[] || []), ...mappedManual, ...dedupedLink];
       setMembers(combined);
     } catch (err) {
       console.error('Failed to fetch members:', err);
@@ -353,22 +366,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMemberRole = async (id: string, newRole: Role) => {
+    // Find the target member to get their email for cross-table sync
+    const targetMember = members.find(m => m.id === id);
     setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
     try {
-      // Try updating anggota_manual first, check if any row was actually updated
-      const { data: manualData, error: manualError } = await supabase
-        .from('anggota_manual').update({ peran: newRole }).eq('id', id).select();
+      // Update in ALL tables where this member exists (not just one)
+      // 1. Try anggota_manual by ID
+      await supabase.from('anggota_manual').update({ peran: newRole }).eq('id', id);
 
-      // If no rows updated in anggota_manual, try anggota_link
-      if (manualError || !manualData || manualData.length === 0) {
-        const { data: linkData, error: linkError } = await supabase
-          .from('anggota_link').update({ peran: newRole }).eq('id', id).select();
+      // 2. Try anggota_link by ID
+      await supabase.from('anggota_link').update({ peran: newRole }).eq('id', id);
 
-        // If no rows updated in anggota_link either, try members table
-        if (linkError || !linkData || linkData.length === 0) {
-          const { error: authError } = await supabase.from('members').update({ role: newRole }).eq('id', id);
-          if (authError) throw new Error(authError.message);
-        }
+      // 3. Try members table by ID
+      await supabase.from('members').update({ role: newRole }).eq('id', id);
+
+      // 4. Also sync by email across tables (for link-joined members who exist in both)
+      if (targetMember?.email) {
+        await supabase.from('members').update({ role: newRole }).eq('email', targetMember.email);
+        await supabase.from('anggota_link').update({ peran: newRole }).eq('email', targetMember.email);
       }
     } catch (err) {
       console.error('Failed to update member role:', err);
