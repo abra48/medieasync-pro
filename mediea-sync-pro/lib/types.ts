@@ -14,11 +14,9 @@ export type TaskStatus = 'Belum Dikerjakan' | 'Menunggu Konfirmasi' | 'Selesai';
 
 export interface Task {
   id: string;
-  task_name: string;
-  assignee_id: string | null;
+  title: string;
   assignee_name: string;
   status: TaskStatus;
-  file_url: string;
   invited_by?: string;
   created_at?: string;
 }
@@ -27,29 +25,38 @@ export interface Finance {
   id: string;
   item_name: string;
   price: number;
-  created_by?: string;
   invited_by?: string;
   created_at?: string;
 }
 
-export interface ProjectSettings {
+export interface Literature {
   id: string;
-  rules: string[];
-  links: { title: string; url: string }[];
+  title: string;
+  link_url: string;
+  invited_by?: string;
 }
 
 export interface Schedule {
   id: string;
-  date: string;
-  event: string;
-  created_at?: string;
+  event_name: string;
+  event_date: string;
+  description?: string;
+  invited_by?: string;
 }
 
-export interface Reminder {
+export interface Guideline {
   id: string;
-  to_name: string;
-  message: string;
-  sent_by?: string;
+  title: string;
+  content: string;
+  invited_by?: string;
+}
+
+export interface Warning {
+  id: string;
+  member_name: string;
+  issue: string;
+  status?: string;
+  invited_by?: string;
   created_at?: string;
 }
 

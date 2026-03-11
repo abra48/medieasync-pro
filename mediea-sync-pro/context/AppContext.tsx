@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { Role, Member, Task, Finance, ProjectSettings, TaskStatus, Schedule, Reminder, SOSMessage } from '@/lib/types';
+import { Role, Member, Task, Finance, TaskStatus, Schedule, Literature, Guideline, Warning, SOSMessage } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -22,43 +22,47 @@ interface AppContextType {
   updateMemberRole: (id: string, newRole: Role) => Promise<void>;
   refreshMembers: () => Promise<void>;
 
-  // Tasks
+  // Tasks (tabel: tasks — kolom: title, assignee_name, status, invited_by)
   tasks: Task[];
   tasksLoading: boolean;
-  addTask: (taskName: string, assigneeId: string | null, assigneeName: string) => Promise<void>;
+  addTask: (title: string, assigneeName: string) => Promise<void>;
   updateTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
-  updateTaskAssignee: (id: string, assigneeId: string | null, assigneeName: string) => Promise<void>;
-  updateTaskFile: (id: string, fileUrl: string) => Promise<void>;
+  updateTaskAssignee: (id: string, assigneeName: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
 
-  // Finances
+  // Finances (tabel: finances — kolom: item_name, price, invited_by)
   finances: Finance[];
   financesLoading: boolean;
   addFinance: (itemName: string, price: number) => Promise<void>;
   deleteFinance: (id: string) => Promise<void>;
   refreshFinances: () => Promise<void>;
 
-  // Project Settings
-  projectSettings: ProjectSettings;
-  settingsLoading: boolean;
-  addRule: (rule: string) => Promise<void>;
-  deleteRule: (index: number) => Promise<void>;
-  addLink: (title: string, url: string) => Promise<void>;
-  deleteLink: (index: number) => Promise<void>;
-  refreshSettings: () => Promise<void>;
+  // Literatures (tabel: literatures — kolom: title, link_url, invited_by)
+  literatures: Literature[];
+  literaturesLoading: boolean;
+  addLiterature: (title: string, linkUrl: string) => Promise<void>;
+  deleteLiterature: (id: string) => Promise<void>;
+  refreshLiteratures: () => Promise<void>;
 
-  // Schedules
+  // Schedules (tabel: schedules — kolom: event_name, event_date, description, invited_by)
   schedules: Schedule[];
   schedulesLoading: boolean;
-  addSchedule: (date: string, event: string) => Promise<void>;
+  addSchedule: (eventName: string, eventDate: string, description?: string) => Promise<void>;
   deleteSchedule: (id: string) => Promise<void>;
   refreshSchedules: () => Promise<void>;
 
-  // Reminders
-  reminders: Reminder[];
-  remindersLoading: boolean;
-  addReminder: (toName: string, message: string) => Promise<void>;
-  refreshReminders: () => Promise<void>;
+  // Guidelines (tabel: guidelines — kolom: title, content, invited_by)
+  guidelines: Guideline[];
+  guidelinesLoading: boolean;
+  addGuideline: (title: string, content: string) => Promise<void>;
+  deleteGuideline: (id: string) => Promise<void>;
+  refreshGuidelines: () => Promise<void>;
+
+  // Warnings (tabel: warnings — kolom: member_name, issue, status, invited_by)
+  warnings: Warning[];
+  warningsLoading: boolean;
+  addWarning: (memberName: string, issue: string) => Promise<void>;
+  refreshWarnings: () => Promise<void>;
 
   // SOS
   sosMessages: SOSMessage[];
@@ -68,8 +72,6 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-const emptySettings: ProjectSettings = { id: '', rules: [], links: [] };
 
 export function AppProvider({ children }: { children: ReactNode }) {
   // --- Auth State ---
@@ -85,19 +87,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [finances, setFinances] = useState<Finance[]>([]);
   const [financesLoading, setFinancesLoading] = useState(false);
-  const [projectSettings, setProjectSettings] = useState<ProjectSettings>(emptySettings);
-  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [literatures, setLiteratures] = useState<Literature[]>([]);
+  const [literaturesLoading, setLiteraturesLoading] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [remindersLoading, setRemindersLoading] = useState(false);
+  const [guidelines, setGuidelines] = useState<Guideline[]>([]);
+  const [guidelinesLoading, setGuidelinesLoading] = useState(false);
+  const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [warningsLoading, setWarningsLoading] = useState(false);
   const [sosMessages, setSosMessages] = useState<SOSMessage[]>([]);
   const [sosLoading, setSosLoading] = useState(false);
 
   const currentRole: Role = profile?.role || 'anggota';
 
   // --- Auth Init ---
-  // Helper: Always fetch profile from members table to get the real role
   const fetchMemberProfile = useCallback(async (userId: string): Promise<Member | null> => {
     const { data } = await supabase.from('members').select('*').eq('id', userId).single();
     return (data as Member) || null;
@@ -105,33 +108,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const ensureMemberProfile = async (u: User): Promise<Member | null> => {
-      // Always try to fetch existing profile from DB first
       const existing = await fetchMemberProfile(u.id);
       if (existing) return existing;
 
-      // Extract name from Google metadata or email
       const googleName =
         u.user_metadata?.full_name ||
         u.user_metadata?.name ||
         u.email?.split('@')[0] ||
         'Pengguna Baru';
 
-      // Determine role: check localStorage join intent (set by /join page before OAuth redirect)
-      // AND current URL path for non-OAuth flows
       const isJoinPath =
         (typeof window !== 'undefined' && window.location.pathname.includes('/join')) ||
         (typeof window !== 'undefined' && window.location.search.includes('ref=')) ||
         (typeof window !== 'undefined' && localStorage.getItem('mediea_join_pending') === 'true');
       const role = isJoinPath ? 'anggota' : 'ketua';
 
-      // Resolve invited_by from URL ref param or localStorage
       let invitedBy: string | null = null;
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
         invitedBy = urlParams.get('ref') || localStorage.getItem('mediea_join_ref') || null;
       }
 
-      // Clear join intent after using it
       if (typeof window !== 'undefined') {
         localStorage.removeItem('mediea_join_pending');
         localStorage.removeItem('mediea_join_ref');
@@ -144,10 +141,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        // If conflict (already inserted by another tab/listener), fetch it
         if (error.code === '23505') {
-          const refetched = await fetchMemberProfile(u.id);
-          return refetched;
+          return await fetchMemberProfile(u.id);
         }
         console.error('Failed to create member profile:', error.message);
         return null;
@@ -176,30 +171,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Skip TOKEN_REFRESHED and tab-refocus events if we already have a valid profile
-      // This prevents role reset when switching tabs or when token auto-refreshes
       if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && profile && user) {
         return;
       }
 
       const u = session?.user || null;
-
       if (!u) {
-        // User signed out
         setUser(null);
         setProfile(null);
         return;
       }
 
       setUser(u);
-
-      // Only set loading on initial load, NOT on tab switch
-      // ALWAYS re-fetch profile from members table to get the real role
       const memberProfile = await fetchMemberProfile(u.id);
       if (memberProfile) {
         setProfile(memberProfile);
       } else {
-        // Profile doesn't exist yet (new user via OAuth), create it
         const newProfile = await ensureMemberProfile(u);
         if (newProfile) setProfile(newProfile);
       }
@@ -224,21 +211,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // --- Members CRUD (combined: members + anggota_manual) ---
+  // =============================================
+  // MEMBERS CRUD (combined: members + anggota_manual)
+  // =============================================
   const refreshMembers = useCallback(async () => {
     if (!user) return;
     setMembersLoading(true);
     try {
-      // Fetch 1: from 'members' table (auth-linked users)
       const { data: authMembers } = await supabase.from('members').select('*')
         .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
         .order('created_at', { ascending: true });
 
-      // Fetch 2: from 'anggota_manual' table (manually added members)
       const { data: manualMembers } = await supabase.from('anggota_manual').select('*')
         .eq('invited_by', user.id);
 
-      // Map anggota_manual columns (nama, peran) to Member interface (name, role)
       const mappedManual: Member[] = (manualMembers || []).map((m: Record<string, unknown>) => ({
         id: m.id as string,
         name: m.nama as string,
@@ -246,7 +232,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         invited_by: m.invited_by as string,
       }));
 
-      // Combine both sources
       const combined = [...(authMembers as Member[] || []), ...mappedManual];
       setMembers(combined);
     } catch (err) {
@@ -259,7 +244,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addMember = async (name: string, role: Role) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      // Insert into 'anggota_manual' table, NOT 'members'
       const { error } = await supabase.from('anggota_manual').insert({
         nama: name,
         peran: role,
@@ -276,10 +260,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteMember = async (id: string) => {
     try {
-      // Try deleting from anggota_manual first (manual members)
       const { error: manualError } = await supabase.from('anggota_manual').delete().eq('id', id);
       if (manualError) {
-        // If not found in anggota_manual, try members table
         const { error: authError } = await supabase.from('members').delete().eq('id', id);
         if (authError) throw new Error(authError.message);
       }
@@ -294,10 +276,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateMemberRole = async (id: string, newRole: Role) => {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
     try {
-      // Try updating anggota_manual first
       const { error: manualError } = await supabase.from('anggota_manual').update({ peran: newRole }).eq('id', id);
       if (manualError) {
-        // If not in anggota_manual, update in members table
         const { error: authError } = await supabase.from('members').update({ role: newRole }).eq('id', id);
         if (authError) throw new Error(authError.message);
       }
@@ -309,13 +289,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // --- Tasks CRUD ---
+  // =============================================
+  // TASKS CRUD (tabel: tasks — kolom: title, assignee_name, status, invited_by)
+  // =============================================
   const refreshTasks = useCallback(async () => {
     if (!user) return;
     setTasksLoading(true);
     try {
       const { data } = await supabase.from('tasks').select('*')
-        .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
+        .eq('invited_by', user.id)
         .order('created_at', { ascending: true });
       if (data) setTasks(data as Task[]);
     } catch (err) {
@@ -325,15 +307,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const addTask = async (taskName: string, assigneeId: string | null, assigneeName: string) => {
+  const addTask = async (title: string, assigneeName: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
       const { error } = await supabase.from('tasks').insert({
-        task_name: taskName,
-        assignee_id: assigneeId,
+        title,
         assignee_name: assigneeName,
         status: 'Belum Dikerjakan',
-        file_url: '',
         invited_by: user.id,
       });
       if (error) throw new Error(error.message);
@@ -357,9 +337,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateTaskAssignee = async (id: string, assigneeId: string | null, assigneeName: string) => {
+  const updateTaskAssignee = async (id: string, assigneeName: string) => {
     try {
-      const { error } = await supabase.from('tasks').update({ assignee_id: assigneeId, assignee_name: assigneeName }).eq('id', id);
+      const { error } = await supabase.from('tasks').update({ assignee_name: assigneeName }).eq('id', id);
       if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to update task assignee:', err);
@@ -369,19 +349,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateTaskFile = async (id: string, fileUrl: string) => {
-    try {
-      const { error } = await supabase.from('tasks').update({ file_url: fileUrl, status: 'Menunggu Konfirmasi' }).eq('id', id);
-      if (error) throw new Error(error.message);
-    } catch (err) {
-      console.error('Failed to update task file:', err);
-      alert('Gagal mengunggah berkas: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
-    } finally {
-      await refreshTasks();
-    }
-  };
-
-  // --- Finances CRUD ---
+  // =============================================
+  // FINANCES CRUD (tabel: finances — kolom: item_name, price, invited_by)
+  // =============================================
   const refreshFinances = useCallback(async () => {
     if (!user) return;
     setFinancesLoading(true);
@@ -403,7 +373,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('finances').insert({
         item_name: itemName,
         price,
-        created_by: user.id,
         invited_by: user.id,
       });
       if (error) throw new Error(error.message);
@@ -427,87 +396,83 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // --- Project Settings CRUD ---
-  const refreshSettings = useCallback(async () => {
-    setSettingsLoading(true);
+  // =============================================
+  // LITERATURES CRUD (tabel: literatures — kolom: title, link_url, invited_by)
+  // =============================================
+  const refreshLiteratures = useCallback(async () => {
+    if (!user) return;
+    setLiteraturesLoading(true);
     try {
-      const { data } = await supabase.from('project_settings').select('*').limit(1).single();
-      if (data) {
-        setProjectSettings({
-          id: data.id,
-          rules: Array.isArray(data.rules) ? data.rules : [],
-          links: Array.isArray(data.links) ? data.links : [],
-        });
-      }
+      const { data } = await supabase.from('literatures').select('*')
+        .eq('invited_by', user.id);
+      if (data) setLiteratures(data as Literature[]);
     } catch (err) {
-      console.error('Failed to fetch settings:', err);
+      console.error('Failed to fetch literatures:', err);
     } finally {
-      setSettingsLoading(false);
+      setLiteraturesLoading(false);
     }
-  }, []);
+  }, [user]);
 
-  const addRule = async (rule: string) => {
-    const newRules = [...projectSettings.rules, rule];
+  const addLiterature = async (title: string, linkUrl: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      await supabase.from('project_settings').update({ rules: newRules }).eq('id', projectSettings.id);
-      setProjectSettings(prev => ({ ...prev, rules: newRules }));
+      const { error } = await supabase.from('literatures').insert({
+        title,
+        link_url: linkUrl,
+        invited_by: user.id,
+      });
+      if (error) throw new Error(error.message);
     } catch (err) {
-      console.error('Failed to add rule:', err);
-      await refreshSettings();
+      console.error('Failed to add literature:', err);
+      alert('Gagal menambah tautan: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    } finally {
+      await refreshLiteratures();
     }
   };
 
-  const deleteRule = async (index: number) => {
-    const newRules = projectSettings.rules.filter((_, i) => i !== index);
+  const deleteLiterature = async (id: string) => {
     try {
-      await supabase.from('project_settings').update({ rules: newRules }).eq('id', projectSettings.id);
-      setProjectSettings(prev => ({ ...prev, rules: newRules }));
+      const { error } = await supabase.from('literatures').delete().eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
-      console.error('Failed to delete rule:', err);
-      await refreshSettings();
+      console.error('Failed to delete literature:', err);
+      alert('Gagal menghapus tautan: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    } finally {
+      await refreshLiteratures();
     }
   };
 
-  const addLink = async (title: string, url: string) => {
-    const newLinks = [...projectSettings.links, { title, url }];
-    try {
-      await supabase.from('project_settings').update({ links: newLinks }).eq('id', projectSettings.id);
-      setProjectSettings(prev => ({ ...prev, links: newLinks }));
-    } catch (err) {
-      console.error('Failed to add link:', err);
-      await refreshSettings();
-    }
-  };
-
-  const deleteLink = async (index: number) => {
-    const newLinks = projectSettings.links.filter((_, i) => i !== index);
-    try {
-      await supabase.from('project_settings').update({ links: newLinks }).eq('id', projectSettings.id);
-      setProjectSettings(prev => ({ ...prev, links: newLinks }));
-    } catch (err) {
-      console.error('Failed to delete link:', err);
-      await refreshSettings();
-    }
-  };
-
-  // --- Schedules CRUD ---
+  // =============================================
+  // SCHEDULES CRUD (tabel: schedules — kolom: event_name, event_date, description, invited_by)
+  // =============================================
   const refreshSchedules = useCallback(async () => {
+    if (!user) return;
     setSchedulesLoading(true);
     try {
-      const { data } = await supabase.from('schedules').select('*').order('date', { ascending: true });
+      const { data } = await supabase.from('schedules').select('*')
+        .eq('invited_by', user.id)
+        .order('event_date', { ascending: true });
       if (data) setSchedules(data as Schedule[]);
     } catch (err) {
       console.error('Failed to fetch schedules:', err);
     } finally {
       setSchedulesLoading(false);
     }
-  }, []);
+  }, [user]);
 
-  const addSchedule = async (date: string, event: string) => {
+  const addSchedule = async (eventName: string, eventDate: string, description?: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      await supabase.from('schedules').insert({ date, event });
+      const { error } = await supabase.from('schedules').insert({
+        event_name: eventName,
+        event_date: eventDate,
+        description: description || '',
+        invited_by: user.id,
+      });
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to add schedule:', err);
+      alert('Gagal menambah jadwal: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshSchedules();
     }
@@ -515,120 +480,176 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteSchedule = async (id: string) => {
     try {
-      await supabase.from('schedules').delete().eq('id', id);
+      const { error } = await supabase.from('schedules').delete().eq('id', id);
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to delete schedule:', err);
+      alert('Gagal menghapus jadwal: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshSchedules();
     }
   };
 
-  // --- Reminders CRUD ---
-  const refreshReminders = useCallback(async () => {
-    setRemindersLoading(true);
+  // =============================================
+  // GUIDELINES CRUD (tabel: guidelines — kolom: title, content, invited_by)
+  // =============================================
+  const refreshGuidelines = useCallback(async () => {
+    if (!user) return;
+    setGuidelinesLoading(true);
     try {
-      const { data } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
-      if (data) setReminders(data as Reminder[]);
+      const { data } = await supabase.from('guidelines').select('*')
+        .eq('invited_by', user.id);
+      if (data) setGuidelines(data as Guideline[]);
     } catch (err) {
-      console.error('Failed to fetch reminders:', err);
+      console.error('Failed to fetch guidelines:', err);
     } finally {
-      setRemindersLoading(false);
+      setGuidelinesLoading(false);
     }
-  }, []);
+  }, [user]);
 
-  const addReminder = async (toName: string, message: string) => {
+  const addGuideline = async (title: string, content: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      await supabase.from('reminders').insert({
-        to_name: toName,
-        message,
-        sent_by: user?.id || null,
+      const { error } = await supabase.from('guidelines').insert({
+        title,
+        content,
+        invited_by: user.id,
       });
+      if (error) throw new Error(error.message);
     } catch (err) {
-      console.error('Failed to add reminder:', err);
+      console.error('Failed to add guideline:', err);
+      alert('Gagal menambah aturan: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
-      await refreshReminders();
+      await refreshGuidelines();
     }
   };
 
-  // --- SOS CRUD ---
+  const deleteGuideline = async (id: string) => {
+    try {
+      const { error } = await supabase.from('guidelines').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    } catch (err) {
+      console.error('Failed to delete guideline:', err);
+      alert('Gagal menghapus aturan: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    } finally {
+      await refreshGuidelines();
+    }
+  };
+
+  // =============================================
+  // WARNINGS CRUD (tabel: warnings — kolom: member_name, issue, status, invited_by)
+  // =============================================
+  const refreshWarnings = useCallback(async () => {
+    if (!user) return;
+    setWarningsLoading(true);
+    try {
+      const { data } = await supabase.from('warnings').select('*')
+        .eq('invited_by', user.id)
+        .order('created_at', { ascending: false });
+      if (data) setWarnings(data as Warning[]);
+    } catch (err) {
+      console.error('Failed to fetch warnings:', err);
+    } finally {
+      setWarningsLoading(false);
+    }
+  }, [user]);
+
+  const addWarning = async (memberName: string, issue: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
+    try {
+      const { error } = await supabase.from('warnings').insert({
+        member_name: memberName,
+        issue,
+        status: 'Aktif',
+        invited_by: user.id,
+      });
+      if (error) throw new Error(error.message);
+    } catch (err) {
+      console.error('Failed to add warning:', err);
+      alert('Gagal menambah peringatan: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    } finally {
+      await refreshWarnings();
+    }
+  };
+
+  // =============================================
+  // SOS CRUD
+  // =============================================
   const refreshSOS = useCallback(async () => {
+    if (!user) return;
     setSosLoading(true);
     try {
-      const { data } = await supabase.from('sos_messages').select('*').order('created_at', { ascending: false });
+      const { data } = await supabase.from('sos_messages').select('*')
+        .eq('invited_by', user.id)
+        .order('created_at', { ascending: false });
       if (data) setSosMessages(data as SOSMessage[]);
     } catch (err) {
       console.error('Failed to fetch SOS messages:', err);
     } finally {
       setSosLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const addSOS = async (fromName: string, message: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      await supabase.from('sos_messages').insert({
+      const { error } = await supabase.from('sos_messages').insert({
         from_name: fromName,
         message,
-        sent_by: user?.id || null,
+        sent_by: user.id,
+        invited_by: user.id,
       });
+      if (error) throw new Error(error.message);
     } catch (err) {
       console.error('Failed to add SOS message:', err);
+      alert('Gagal mengirim SOS: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshSOS();
     }
   };
 
-  // --- Initial Data Load (after auth) + Realtime Subscriptions ---
+  // =============================================
+  // INITIAL DATA LOAD + REALTIME SUBSCRIPTIONS
+  // =============================================
   useEffect(() => {
     if (!user) return;
 
-    // Initial fetch
     refreshMembers();
     refreshTasks();
     refreshFinances();
-    refreshSettings();
+    refreshLiteratures();
     refreshSchedules();
-    refreshReminders();
+    refreshGuidelines();
+    refreshWarnings();
     refreshSOS();
 
-    // Supabase Realtime: auto-sync members, tasks, finances across all clients
     const channel = supabase
       .channel('realtime-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'members' },
-        () => { refreshMembers(); }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'anggota_manual' },
-        () => { refreshMembers(); }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks' },
-        () => { refreshTasks(); }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'finances' },
-        () => { refreshFinances(); }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => { refreshMembers(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'anggota_manual' }, () => { refreshMembers(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => { refreshTasks(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'finances' }, () => { refreshFinances(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'literatures' }, () => { refreshLiteratures(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, () => { refreshSchedules(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guidelines' }, () => { refreshGuidelines(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'warnings' }, () => { refreshWarnings(); })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, refreshMembers, refreshTasks, refreshFinances, refreshSettings, refreshSchedules, refreshReminders, refreshSOS]);
+  }, [user, refreshMembers, refreshTasks, refreshFinances, refreshLiteratures, refreshSchedules, refreshGuidelines, refreshWarnings, refreshSOS]);
 
   return (
     <AppContext.Provider value={{
       user, profile, currentRole, loading, signOut, updateProfile,
       members, membersLoading, addMember, deleteMember, updateMemberRole, refreshMembers,
-      tasks, tasksLoading, addTask, updateTaskStatus, updateTaskAssignee, updateTaskFile, refreshTasks,
+      tasks, tasksLoading, addTask, updateTaskStatus, updateTaskAssignee, refreshTasks,
       finances, financesLoading, addFinance, deleteFinance, refreshFinances,
-      projectSettings, settingsLoading, addRule, deleteRule, addLink, deleteLink, refreshSettings,
+      literatures, literaturesLoading, addLiterature, deleteLiterature, refreshLiteratures,
       schedules, schedulesLoading, addSchedule, deleteSchedule, refreshSchedules,
-      reminders, remindersLoading, addReminder, refreshReminders,
+      guidelines, guidelinesLoading, addGuideline, deleteGuideline, refreshGuidelines,
+      warnings, warningsLoading, addWarning, refreshWarnings,
       sosMessages, sosLoading, addSOS, refreshSOS,
     }}>
       {children}

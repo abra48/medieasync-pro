@@ -6,7 +6,7 @@ import ReadOnlyBanner from '@/components/ui/ReadOnlyBanner';
 import { Plus, Trash2, ScrollText, Loader2 } from 'lucide-react';
 
 export default function PakemModal() {
-  const { currentRole, projectSettings, settingsLoading, addRule, deleteRule } = useAppContext();
+  const { currentRole, guidelines, guidelinesLoading, addGuideline, deleteGuideline } = useAppContext();
   const isSekretaris = currentRole === 'sekretaris';
   const isReadOnly = !isSekretaris;
 
@@ -17,9 +17,14 @@ export default function PakemModal() {
     e.preventDefault();
     if (!newRule.trim()) return;
     setSubmitting(true);
-    await addRule(newRule.trim());
-    setNewRule('');
-    setSubmitting(false);
+    try {
+      await addGuideline(newRule.trim(), newRule.trim());
+      setNewRule('');
+    } catch (err) {
+      console.error('Failed to add guideline:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -44,17 +49,17 @@ export default function PakemModal() {
       )}
 
       <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-[#8c8c8e] uppercase tracking-wider mb-3">Daftar Aturan ({projectSettings.rules.length})</h3>
-        {settingsLoading ? (
+        <h3 className="text-xs font-semibold text-[#8c8c8e] uppercase tracking-wider mb-3">Daftar Aturan ({guidelines.length})</h3>
+        {guidelinesLoading ? (
           <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[#10b981]" /></div>
-        ) : projectSettings.rules.map((rule, i) => (
-          <div key={i} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3">
+        ) : guidelines.map((g, i) => (
+          <div key={g.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3">
             <div className="flex items-start gap-3">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#10b981]/10 text-xs font-bold text-[#10b981] shrink-0">{i + 1}</span>
-              <p className="text-sm text-[#fafafa]">{rule}</p>
+              <p className="text-sm text-[#fafafa]">{g.content}</p>
             </div>
             {isSekretaris && (
-              <button onClick={() => deleteRule(i)}
+              <button onClick={() => deleteGuideline(g.id)}
                 className="p-1.5 rounded-lg text-[#8c8c8e] hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0">
                 <Trash2 size={14} />
               </button>

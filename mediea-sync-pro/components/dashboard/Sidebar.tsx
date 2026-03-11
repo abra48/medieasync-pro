@@ -97,7 +97,7 @@ export default function Sidebar() {
         </h3>
         <div className="overflow-y-auto max-h-48 space-y-1.5 custom-scrollbar pr-1">
           {members.map((member) => {
-            const memberTasks = tasks.filter(t => t.assignee_id === member.id || t.assignee_name === member.name);
+            const memberTasks = tasks.filter(t => t.assignee_name === member.name);
             return (
               <div key={member.id} className="rounded-lg bg-white/5 border border-white/5 px-3 py-2">
                 <div className="flex items-center gap-2">
@@ -114,7 +114,7 @@ export default function Sidebar() {
                 {memberTasks.length > 0 ? (
                   memberTasks.map((task) => (
                     <p key={task.id} className="text-xs text-[#8c8c8e] ml-7 mt-0.5 truncate">
-                      ↳ {task.task_name}
+                      ↳ {task.title}
                     </p>
                   ))
                 ) : (

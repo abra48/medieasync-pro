@@ -6,7 +6,7 @@ import ReadOnlyBanner from '@/components/ui/ReadOnlyBanner';
 import { BellRing, Send, Loader2 } from 'lucide-react';
 
 export default function ColekModal() {
-  const { currentRole, members, reminders, remindersLoading, addReminder } = useAppContext();
+  const { currentRole, members, warnings, warningsLoading, addWarning } = useAppContext();
   const isReadOnly = currentRole !== 'ketua';
 
   const [to, setTo] = useState('');
@@ -17,10 +17,15 @@ export default function ColekModal() {
     e.preventDefault();
     if (!to || !message.trim()) return;
     setSubmitting(true);
-    await addReminder(to, message.trim());
-    setTo('');
-    setMessage('');
-    setSubmitting(false);
+    try {
+      await addWarning(to, message.trim());
+      setTo('');
+      setMessage('');
+    } catch (err) {
+      console.error('Failed to add warning:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -53,18 +58,18 @@ export default function ColekModal() {
       )}
 
       <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-[#8c8c8e] uppercase tracking-wider mb-3">Riwayat Peringatan ({reminders.length})</h3>
-        {remindersLoading ? (
+        <h3 className="text-xs font-semibold text-[#8c8c8e] uppercase tracking-wider mb-3">Riwayat Peringatan ({warnings.length})</h3>
+        {warningsLoading ? (
           <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[#10b981]" /></div>
-        ) : reminders.length === 0 ? (
+        ) : warnings.length === 0 ? (
           <p className="text-sm text-[#8c8c8e] text-center py-6">Belum ada peringatan yang dikirim.</p>
-        ) : reminders.map((r) => (
-          <div key={r.id} className="rounded-xl bg-white/5 border border-white/5 px-4 py-3">
+        ) : warnings.map((w) => (
+          <div key={w.id} className="rounded-xl bg-white/5 border border-white/5 px-4 py-3">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm font-medium text-[#fafafa]">Kepada: {r.to_name}</p>
-              <span className="text-[10px] text-[#8c8c8e]">{r.created_at ? new Date(r.created_at).toLocaleString('id-ID') : ''}</span>
+              <p className="text-sm font-medium text-[#fafafa]">Kepada: {w.member_name}</p>
+              <span className="text-[10px] text-[#8c8c8e]">{w.created_at ? new Date(w.created_at).toLocaleString('id-ID') : ''}</span>
             </div>
-            <p className="text-xs text-[#8c8c8e]">{r.message}</p>
+            <p className="text-xs text-[#8c8c8e]">{w.issue}</p>
           </div>
         ))}
       </div>

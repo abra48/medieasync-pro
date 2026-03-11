@@ -6,7 +6,7 @@ import ReadOnlyBanner from '@/components/ui/ReadOnlyBanner';
 import { Plus, Trash2, ExternalLink, LinkIcon, Loader2 } from 'lucide-react';
 
 export default function BrankasModal() {
-  const { currentRole, projectSettings, settingsLoading, addLink, deleteLink } = useAppContext();
+  const { currentRole, literatures, literaturesLoading, addLiterature, deleteLiterature } = useAppContext();
   const isSekretaris = currentRole === 'sekretaris';
   const isReadOnly = !isSekretaris;
 
@@ -18,10 +18,15 @@ export default function BrankasModal() {
     e.preventDefault();
     if (!title.trim() || !url.trim()) return;
     setSubmitting(true);
-    await addLink(title.trim(), url.trim());
-    setTitle('');
-    setUrl('');
-    setSubmitting(false);
+    try {
+      await addLiterature(title.trim(), url.trim());
+      setTitle('');
+      setUrl('');
+    } catch (err) {
+      console.error('Failed to add literature:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -51,27 +56,27 @@ export default function BrankasModal() {
       )}
 
       <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-[#8c8c8e] uppercase tracking-wider mb-3">Tautan Tersimpan ({projectSettings.links.length})</h3>
-        {settingsLoading ? (
+        <h3 className="text-xs font-semibold text-[#8c8c8e] uppercase tracking-wider mb-3">Tautan Tersimpan ({literatures.length})</h3>
+        {literaturesLoading ? (
           <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-[#10b981]" /></div>
-        ) : projectSettings.links.map((link, i) => (
-          <div key={i} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3 hover:border-[#10b981]/10 transition-colors">
+        ) : literatures.map((lit) => (
+          <div key={lit.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3 hover:border-[#10b981]/10 transition-colors">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#10b981]/10">
                 <ExternalLink size={14} className="text-[#10b981]" />
               </div>
               <div>
-                <p className="text-sm font-medium text-[#fafafa]">{link.title}</p>
-                <p className="text-xs text-[#10b981]/60 truncate max-w-[200px]">{link.url}</p>
+                <p className="text-sm font-medium text-[#fafafa]">{lit.title}</p>
+                <p className="text-xs text-[#10b981]/60 truncate max-w-[200px]">{lit.link_url}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <a href={link.url} target="_blank" rel="noopener noreferrer"
+              <a href={lit.link_url} target="_blank" rel="noopener noreferrer"
                 className="p-1.5 rounded-lg text-[#8c8c8e] hover:text-[#10b981] hover:bg-[#10b981]/10 transition-colors">
                 <ExternalLink size={14} />
               </a>
               {isSekretaris && (
-                <button onClick={() => deleteLink(i)}
+                <button onClick={() => deleteLiterature(lit.id)}
                   className="p-1.5 rounded-lg text-[#8c8c8e] hover:text-red-400 hover:bg-red-500/10 transition-colors">
                   <Trash2 size={14} />
                 </button>

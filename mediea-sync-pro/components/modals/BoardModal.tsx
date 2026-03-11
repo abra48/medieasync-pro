@@ -36,7 +36,7 @@ export default function BoardModal() {
           return (
             <div key={task.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3 hover:border-white/10 transition-colors">
               <div className="flex-1">
-                <p className="text-sm font-medium text-[#fafafa]">{task.task_name}</p>
+                <p className="text-sm font-medium text-[#fafafa]">{task.title}</p>
                 <p className="text-xs text-[#8c8c8e] mt-0.5">{task.assignee_name || 'Belum ditugaskan'}</p>
               </div>
               <div className="flex items-center gap-2">

@@ -10,18 +10,23 @@ export default function JadwalModal() {
   const isSekretaris = currentRole === 'sekretaris';
   const isReadOnly = !isSekretaris;
 
-  const [date, setDate] = useState('');
-  const [event, setEvent] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventName, setEventName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !event.trim()) return;
+    if (!eventDate || !eventName.trim()) return;
     setSubmitting(true);
-    await addSchedule(date, event.trim());
-    setDate('');
-    setEvent('');
-    setSubmitting(false);
+    try {
+      await addSchedule(eventName.trim(), eventDate);
+      setEventDate('');
+      setEventName('');
+    } catch (err) {
+      console.error('Failed to add schedule:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -34,9 +39,9 @@ export default function JadwalModal() {
             <CalendarDays size={16} className="text-[#10b981]" />Tambah Jadwal
           </h3>
           <div className="flex flex-col sm:flex-row gap-3">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
               className="rounded-lg bg-[#1e252b] border border-white/10 px-3 py-2 text-sm text-[#fafafa] focus:outline-none focus:border-[#10b981]/50" />
-            <input type="text" value={event} onChange={(e) => setEvent(e.target.value)}
+            <input type="text" value={eventName} onChange={(e) => setEventName(e.target.value)}
               placeholder="Nama kegiatan..."
               className="flex-1 rounded-lg bg-[#1e252b] border border-white/10 px-3 py-2 text-sm text-[#fafafa] placeholder:text-[#8c8c8e]/50 focus:outline-none focus:border-[#10b981]/50" />
             <button type="submit" disabled={submitting}
@@ -55,12 +60,12 @@ export default function JadwalModal() {
           <div key={s.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3 hover:border-white/10 transition-colors">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 flex-col items-center justify-center rounded-lg bg-[#10b981]/10">
-                <span className="text-[10px] font-bold text-[#10b981]">{new Date(s.date).toLocaleDateString('id-ID', { day: '2-digit' })}</span>
-                <span className="text-[8px] text-[#10b981]/70 uppercase">{new Date(s.date).toLocaleDateString('id-ID', { month: 'short' })}</span>
+                <span className="text-[10px] font-bold text-[#10b981]">{new Date(s.event_date).toLocaleDateString('id-ID', { day: '2-digit' })}</span>
+                <span className="text-[8px] text-[#10b981]/70 uppercase">{new Date(s.event_date).toLocaleDateString('id-ID', { month: 'short' })}</span>
               </div>
               <div>
-                <p className="text-sm font-medium text-[#fafafa]">{s.event}</p>
-                <p className="text-xs text-[#8c8c8e]">{new Date(s.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-sm font-medium text-[#fafafa]">{s.event_name}</p>
+                <p className="text-xs text-[#8c8c8e]">{new Date(s.event_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
             </div>
             {isSekretaris && (
