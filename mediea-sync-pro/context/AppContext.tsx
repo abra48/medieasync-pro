@@ -79,6 +79,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
+  const userRef = useRef<User | null>(null);
+  const profileRef = useRef<Member | null>(null);
 
   // --- Data State ---
   const [members, setMembers] = useState<Member[]>([]);
@@ -99,6 +101,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sosLoading, setSosLoading] = useState(false);
 
   const currentRole: Role = profile?.role || 'anggota';
+
+  // Keep refs in sync with state (for use in event listeners to avoid stale closures)
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
 
   // --- Auth Init ---
   const fetchMemberProfile = useCallback(async (userId: string): Promise<Member | null> => {
@@ -171,7 +177,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && profile && user) {
+      // Use REFS (not state) to avoid stale closure — state values are frozen at first render
+      if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && profileRef.current && userRef.current) {
         return;
       }
 
@@ -296,9 +303,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     setTasksLoading(true);
     try {
-      const { data } = await supabase.from('tasks').select('*')
-        .eq('invited_by', user.id)
-        .order('created_at', { ascending: true });
+      const { data, error } = await supabase.from('tasks').select('*')
+        .eq('invited_by', user.id);
+      if (error) { console.error('Fetch tasks error:', error.message); return; }
       if (data) setTasks(data as Task[]);
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
@@ -356,9 +363,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     setFinancesLoading(true);
     try {
-      const { data } = await supabase.from('finances').select('*')
-        .eq('invited_by', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('finances').select('*')
+        .eq('invited_by', user.id);
+      if (error) { console.error('Fetch finances error:', error.message); return; }
       if (data) setFinances(data as Finance[]);
     } catch (err) {
       console.error('Failed to fetch finances:', err);
@@ -403,8 +410,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     setLiteraturesLoading(true);
     try {
-      const { data } = await supabase.from('literatures').select('*')
+      const { data, error } = await supabase.from('literatures').select('*')
         .eq('invited_by', user.id);
+      if (error) { console.error('Fetch literatures error:', error.message); return; }
       if (data) setLiteratures(data as Literature[]);
     } catch (err) {
       console.error('Failed to fetch literatures:', err);
@@ -449,9 +457,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     setSchedulesLoading(true);
     try {
-      const { data } = await supabase.from('schedules').select('*')
-        .eq('invited_by', user.id)
-        .order('event_date', { ascending: true });
+      const { data, error } = await supabase.from('schedules').select('*')
+        .eq('invited_by', user.id);
+      if (error) { console.error('Fetch schedules error:', error.message); return; }
       if (data) setSchedules(data as Schedule[]);
     } catch (err) {
       console.error('Failed to fetch schedules:', err);
@@ -497,8 +505,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     setGuidelinesLoading(true);
     try {
-      const { data } = await supabase.from('guidelines').select('*')
+      const { data, error } = await supabase.from('guidelines').select('*')
         .eq('invited_by', user.id);
+      if (error) { console.error('Fetch guidelines error:', error.message); return; }
       if (data) setGuidelines(data as Guideline[]);
     } catch (err) {
       console.error('Failed to fetch guidelines:', err);
@@ -543,9 +552,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     setWarningsLoading(true);
     try {
-      const { data } = await supabase.from('warnings').select('*')
-        .eq('invited_by', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('warnings').select('*')
+        .eq('invited_by', user.id);
+      if (error) { console.error('Fetch warnings error:', error.message); return; }
       if (data) setWarnings(data as Warning[]);
     } catch (err) {
       console.error('Failed to fetch warnings:', err);
@@ -579,9 +588,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     setSosLoading(true);
     try {
-      const { data } = await supabase.from('sos_messages').select('*')
-        .eq('invited_by', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('sos_messages').select('*')
+        .eq('invited_by', user.id);
+      if (error) { console.error('Fetch SOS error:', error.message); return; }
       if (data) setSosMessages(data as SOSMessage[]);
     } catch (err) {
       console.error('Failed to fetch SOS messages:', err);
