@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Role, Member, Task, Finance, ProjectSettings, TaskStatus, Schedule, Reminder, SOSMessage } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
@@ -17,7 +17,7 @@ interface AppContextType {
   // Members
   members: Member[];
   membersLoading: boolean;
-  addMember: (name: string, role: Role, email?: string) => Promise<void>;
+  addMember: (name: string, role: Role) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
   updateMemberRole: (id: string, newRole: Role) => Promise<void>;
   refreshMembers: () => Promise<void>;
@@ -76,6 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
 
   // --- Data State ---
   const [members, setMembers] = useState<Member[]>([]);
@@ -169,29 +170,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error('Auth init failed:', err);
       } finally {
         setLoading(false);
+        initialLoadDone.current = true;
       }
     };
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Skip TOKEN_REFRESHED and tab-refocus events if we already have a valid profile
+      // This prevents role reset when switching tabs or when token auto-refreshes
+      if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && profile && user) {
+        return;
+      }
+
       const u = session?.user || null;
-      setUser(u);
-      if (u) {
-        // ALWAYS re-fetch profile from members table to get the real role
-        const memberProfile = await fetchMemberProfile(u.id);
-        if (memberProfile) {
-          setProfile(memberProfile);
-        } else {
-          // Profile doesn't exist yet (new user via OAuth), create it
-          const newProfile = await ensureMemberProfile(u);
-          if (newProfile) setProfile(newProfile);
-        }
-      } else {
+
+      if (!u) {
+        // User signed out
+        setUser(null);
         setProfile(null);
+        return;
+      }
+
+      setUser(u);
+
+      // Only set loading on initial load, NOT on tab switch
+      // ALWAYS re-fetch profile from members table to get the real role
+      const memberProfile = await fetchMemberProfile(u.id);
+      if (memberProfile) {
+        setProfile(memberProfile);
+      } else {
+        // Profile doesn't exist yet (new user via OAuth), create it
+        const newProfile = await ensureMemberProfile(u);
+        if (newProfile) setProfile(newProfile);
       }
     });
 
     return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchMemberProfile]);
 
   const signOut = async () => {
@@ -209,15 +224,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // --- Members CRUD ---
+  // --- Members CRUD (combined: members + anggota_manual) ---
   const refreshMembers = useCallback(async () => {
     if (!user) return;
     setMembersLoading(true);
     try {
-      const { data } = await supabase.from('members').select('*')
+      // Fetch 1: from 'members' table (auth-linked users)
+      const { data: authMembers } = await supabase.from('members').select('*')
         .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
         .order('created_at', { ascending: true });
-      if (data) setMembers(data as Member[]);
+
+      // Fetch 2: from 'anggota_manual' table (manually added members)
+      const { data: manualMembers } = await supabase.from('anggota_manual').select('*')
+        .eq('invited_by', user.id);
+
+      // Map anggota_manual columns (nama, peran) to Member interface (name, role)
+      const mappedManual: Member[] = (manualMembers || []).map((m: Record<string, unknown>) => ({
+        id: m.id as string,
+        name: m.nama as string,
+        role: (m.peran as Role) || 'anggota',
+        invited_by: m.invited_by as string,
+      }));
+
+      // Combine both sources
+      const combined = [...(authMembers as Member[] || []), ...mappedManual];
+      setMembers(combined);
     } catch (err) {
       console.error('Failed to fetch members:', err);
     } finally {
@@ -225,14 +256,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const addMember = async (name: string, role: Role, email?: string) => {
+  const addMember = async (name: string, role: Role) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
-      const { error } = await supabase.from('members').insert({
-        id: crypto.randomUUID(),
-        name,
-        role,
-        email: email || null,
+      // Insert into 'anggota_manual' table, NOT 'members'
+      const { error } = await supabase.from('anggota_manual').insert({
+        nama: name,
+        peran: role,
         invited_by: user.id,
       });
       if (error) throw new Error(error.message);
@@ -246,8 +276,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteMember = async (id: string) => {
     try {
-      const { error } = await supabase.from('members').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      // Try deleting from anggota_manual first (manual members)
+      const { error: manualError } = await supabase.from('anggota_manual').delete().eq('id', id);
+      if (manualError) {
+        // If not found in anggota_manual, try members table
+        const { error: authError } = await supabase.from('members').delete().eq('id', id);
+        if (authError) throw new Error(authError.message);
+      }
     } catch (err) {
       console.error('Failed to delete member:', err);
       alert('Gagal menghapus anggota: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
@@ -259,8 +294,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateMemberRole = async (id: string, newRole: Role) => {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
     try {
-      const { error } = await supabase.from('members').update({ role: newRole }).eq('id', id);
-      if (error) throw new Error(error.message);
+      // Try updating anggota_manual first
+      const { error: manualError } = await supabase.from('anggota_manual').update({ peran: newRole }).eq('id', id);
+      if (manualError) {
+        // If not in anggota_manual, update in members table
+        const { error: authError } = await supabase.from('members').update({ role: newRole }).eq('id', id);
+        if (authError) throw new Error(authError.message);
+      }
     } catch (err) {
       console.error('Failed to update member role:', err);
       alert('Gagal mengubah role: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
@@ -347,7 +387,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFinancesLoading(true);
     try {
       const { data } = await supabase.from('finances').select('*')
-        .or(`invited_by.eq.${user.id},id.eq.${user.id}`)
+        .or(`invited_by.eq.${user.id},created_by.eq.${user.id}`)
         .order('created_at', { ascending: false });
       if (data) setFinances(data as Finance[]);
     } catch (err) {
@@ -556,6 +596,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'members' },
+        () => { refreshMembers(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'anggota_manual' },
         () => { refreshMembers(); }
       )
       .on(
