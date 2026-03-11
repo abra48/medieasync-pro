@@ -166,7 +166,12 @@ function LoginContent() {
               if (redirectTo.includes('/join')) {
                 localStorage.setItem('mediea_join_pending', 'true');
               }
-              const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+              const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                  redirectTo: `${window.location.origin}${redirectTo}`,
+                },
+              });
               if (error) {
                 setError(error.message);
                 setLoading(false);

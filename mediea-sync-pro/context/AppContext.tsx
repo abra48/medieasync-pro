@@ -117,6 +117,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const existing = await fetchMemberProfile(u.id);
       if (existing) return existing;
 
+      // If a join is pending, let /join page handle profile creation
+      // (it has direct access to the ref parameter for invited_by)
+      if (typeof window !== 'undefined' && localStorage.getItem('mediea_join_pending') === 'true') {
+        return null;
+      }
+
       const googleName =
         u.user_metadata?.full_name ||
         u.user_metadata?.name ||
