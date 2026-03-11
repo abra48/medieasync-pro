@@ -16,74 +16,105 @@ function JoinContent() {
 
   useEffect(() => {
     const processJoin = async () => {
-      // Persist ref (Ketua ID) so it survives OAuth redirects
-      if (ref) {
-        localStorage.setItem('mediea_join_ref', ref);
-      }
-
-      // 1. Check if user is logged in
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        // Store join intent so ensureMemberProfile() assigns 'anggota' role
-        // even after Google OAuth redirects away from /join
-        localStorage.setItem('mediea_join_pending', 'true');
-        const redirectUrl = `/join${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
-        router.replace(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
-        return;
-      }
-
-      // 2. Check if user already has a member profile
-      setStatus('joining');
-      const { data: existingMember } = await supabase
-        .from('members')
-        .select('id, invited_by')
-        .eq('id', user.id)
-        .single();
-
-      if (existingMember) {
-        // If member exists but has no invited_by, update it with the current ref
-        const refId = ref || localStorage.getItem('mediea_join_ref') || null;
-        if (!existingMember.invited_by && refId) {
-          await supabase.from('members').update({ invited_by: refId }).eq('id', user.id);
+      try {
+        // Persist ref (Ketua ID) so it survives OAuth redirects
+        if (ref) {
+          localStorage.setItem('mediea_join_ref', ref);
         }
-        setStatus('already_member');
+
+        // 1. Check if user is logged in
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+          // Store join intent so ensureMemberProfile() assigns 'anggota' role
+          // even after Google OAuth redirects away from /join
+          localStorage.setItem('mediea_join_pending', 'true');
+          const redirectUrl = `/join${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
+          router.replace(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
+          return;
+        }
+
+        // 2. Check if user already has a member profile in members table
+        setStatus('joining');
+        const { data: existingMember } = await supabase
+          .from('members')
+          .select('id, invited_by')
+          .eq('id', user.id)
+          .single();
+
+        // Resolve the Ketua ID who invited this member
+        const refId = ref || localStorage.getItem('mediea_join_ref') || null;
+
+        if (existingMember) {
+          // If member exists but has no invited_by, update it with the current ref
+          if (!existingMember.invited_by && refId) {
+            await supabase.from('members').update({ invited_by: refId }).eq('id', user.id);
+          }
+          setStatus('already_member');
+          localStorage.removeItem('mediea_join_ref');
+          localStorage.removeItem('mediea_join_pending');
+          setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+          return;
+        }
+
+        // 3. Also check if user already exists in anggota_link by email
+        const { data: existingLinkMember } = await supabase
+          .from('anggota_link')
+          .select('id')
+          .eq('email', user.email || '')
+          .maybeSingle();
+
+        if (existingLinkMember) {
+          setStatus('already_member');
+          localStorage.removeItem('mediea_join_ref');
+          localStorage.removeItem('mediea_join_pending');
+          setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+          return;
+        }
+
+        // 4. INSERT into anggota_link table (NOT members)
+        const displayName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split('@')[0] ||
+          'Anggota Baru';
+
+        const { error } = await supabase.from('anggota_link').insert({
+          nama: displayName,
+          peran: 'Anggota',
+          email: user.email || null,
+          invited_by: refId,
+        });
+
+        // Clean up localStorage
         localStorage.removeItem('mediea_join_ref');
         localStorage.removeItem('mediea_join_pending');
+
+        if (error) {
+          setStatus('error');
+          setErrorMsg(error.message);
+          return;
+        }
+
+        // Also create a basic members profile so auth works (with invited_by set)
+        const { error: memberError } = await supabase.from('members').insert({
+          id: user.id,
+          name: displayName,
+          email: user.email || null,
+          role: 'anggota',
+          invited_by: refId,
+        });
+
+        if (memberError && memberError.code !== '23505') {
+          console.error('Failed to create auth member profile:', memberError.message);
+        }
+
+        setStatus('success');
         setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
-        return;
-      }
-
-      // 3. Resolve the Ketua ID who invited this member
-      const refId = ref || localStorage.getItem('mediea_join_ref') || null;
-
-      // 4. Insert new member with default role 'anggota' and invited_by
-      const displayName =
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        user.email?.split('@')[0] ||
-        'Anggota Baru';
-
-      const { error } = await supabase.from('members').insert({
-        id: user.id,
-        name: displayName,
-        email: user.email || null,
-        role: 'anggota',
-        invited_by: refId,
-      });
-
-      // Clean up localStorage
-      localStorage.removeItem('mediea_join_ref');
-      localStorage.removeItem('mediea_join_pending');
-
-      if (error) {
+      } catch (err) {
         setStatus('error');
-        setErrorMsg(error.message);
-        return;
+        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kesalahan tidak diketahui.');
       }
-
-      setStatus('success');
-      setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
     };
 
     processJoin();

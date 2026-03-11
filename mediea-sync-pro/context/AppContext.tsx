@@ -13,6 +13,7 @@ interface AppContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   updateProfile: (name: string, nim: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 
   // Members
   members: Member[];
@@ -70,6 +71,9 @@ interface AppContextType {
   sosLoading: boolean;
   addSOS: (fromName: string, message: string) => Promise<void>;
   refreshSOS: () => Promise<void>;
+
+  // Refresh all data at once
+  refreshAllData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -113,9 +117,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Auth Init ---
   const fetchMemberProfile = useCallback(async (userId: string): Promise<Member | null> => {
-    const { data } = await supabase.from('members').select('*').eq('id', userId).single();
-    return (data as Member) || null;
+    try {
+      const { data, error } = await supabase.from('members').select('*').eq('id', userId).single();
+      if (error) {
+        console.error('Fetch member profile error:', error.message);
+        return null;
+      }
+      return (data as Member) || null;
+    } catch (err) {
+      console.error('Failed to fetch member profile:', err);
+      return null;
+    }
   }, []);
+
+  // Refresh profile from DB — useful after role changes
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    try {
+      const memberProfile = await fetchMemberProfile(user.id);
+      if (memberProfile) {
+        setProfile(memberProfile);
+      }
+    } catch (err) {
+      console.error('Failed to refresh profile:', err);
+    }
+  }, [user, fetchMemberProfile]);
 
   useEffect(() => {
     const ensureMemberProfile = async (u: User): Promise<Member | null> => {
@@ -225,27 +251,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (name: string, nim: string) => {
     if (!user) return;
-    const { error } = await supabase.from('members').update({ name, nim }).eq('id', user.id);
-    if (!error) {
+    try {
+      const { error } = await supabase.from('members').update({ name, nim }).eq('id', user.id);
+      if (error) throw new Error(error.message);
       setProfile(prev => prev ? { ...prev, name, nim } : prev);
       await refreshMembers();
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      alert('Gagal memperbarui profil: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     }
   };
 
   // =============================================
-  // MEMBERS CRUD (combined: members + anggota_manual)
+  // MEMBERS CRUD (combined: members + anggota_manual + anggota_link)
   // =============================================
   const refreshMembers = useCallback(async () => {
     if (!user || !groupOwnerId) return;
     setMembersLoading(true);
     try {
-      const { data: authMembers } = await supabase.from('members').select('*')
+      // Fetch 1: from members table (auth-linked members)
+      const { data: authMembers, error: authErr } = await supabase.from('members').select('*')
         .or(`invited_by.eq.${groupOwnerId},id.eq.${groupOwnerId}`)
         .order('created_at', { ascending: true });
+      if (authErr) console.error('Fetch auth members error:', authErr.message);
 
-      const { data: manualMembers } = await supabase.from('anggota_manual').select('*')
+      // Fetch 2: from anggota_manual table
+      const { data: manualMembers, error: manualErr } = await supabase.from('anggota_manual').select('*')
         .eq('invited_by', groupOwnerId);
+      if (manualErr) console.error('Fetch manual members error:', manualErr.message);
 
+      // Fetch 3: from anggota_link table (members who joined via invite link)
+      const { data: linkMembers, error: linkErr } = await supabase.from('anggota_link').select('*')
+        .eq('invited_by', groupOwnerId);
+      if (linkErr) console.error('Fetch link members error:', linkErr.message);
+
+      // Map anggota_manual to Member type
       const mappedManual: Member[] = (manualMembers || []).map((m: Record<string, unknown>) => ({
         id: m.id as string,
         name: m.nama as string,
@@ -253,10 +293,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         invited_by: m.invited_by as string,
       }));
 
-      const combined = [...(authMembers as Member[] || []), ...mappedManual];
+      // Map anggota_link to Member type
+      const mappedLink: Member[] = (linkMembers || []).map((m: Record<string, unknown>) => ({
+        id: m.id as string,
+        name: m.nama as string,
+        email: m.email as string | undefined,
+        role: (m.peran as Role) || 'anggota',
+        invited_by: m.invited_by as string,
+        created_at: m.created_at as string | undefined,
+      }));
+
+      // Combine all three sources
+      const combined = [...(authMembers as Member[] || []), ...mappedManual, ...mappedLink];
       setMembers(combined);
     } catch (err) {
       console.error('Failed to fetch members:', err);
+      alert('Gagal memuat daftar anggota: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       setMembersLoading(false);
     }
@@ -281,10 +333,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteMember = async (id: string) => {
     try {
+      // Try deleting from anggota_manual first
       const { error: manualError } = await supabase.from('anggota_manual').delete().eq('id', id);
       if (manualError) {
-        const { error: authError } = await supabase.from('members').delete().eq('id', id);
-        if (authError) throw new Error(authError.message);
+        // Try deleting from anggota_link
+        const { error: linkError } = await supabase.from('anggota_link').delete().eq('id', id);
+        if (linkError) {
+          // Finally try deleting from members
+          const { error: authError } = await supabase.from('members').delete().eq('id', id);
+          if (authError) throw new Error(authError.message);
+        }
       }
     } catch (err) {
       console.error('Failed to delete member:', err);
@@ -301,10 +359,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { data: manualData, error: manualError } = await supabase
         .from('anggota_manual').update({ peran: newRole }).eq('id', id).select();
 
-      // If no rows updated in anggota_manual (member joined via invite link), update members table
+      // If no rows updated in anggota_manual, try anggota_link
       if (manualError || !manualData || manualData.length === 0) {
-        const { error: authError } = await supabase.from('members').update({ role: newRole }).eq('id', id);
-        if (authError) throw new Error(authError.message);
+        const { data: linkData, error: linkError } = await supabase
+          .from('anggota_link').update({ peran: newRole }).eq('id', id).select();
+
+        // If no rows updated in anggota_link either, try members table
+        if (linkError || !linkData || linkData.length === 0) {
+          const { error: authError } = await supabase.from('members').update({ role: newRole }).eq('id', id);
+          if (authError) throw new Error(authError.message);
+        }
       }
     } catch (err) {
       console.error('Failed to update member role:', err);
@@ -661,6 +725,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // =============================================
+  // REFRESH ALL DATA AT ONCE
+  // =============================================
+  const refreshAllData = useCallback(async () => {
+    await Promise.all([
+      refreshProfile(),
+      refreshMembers(),
+      refreshTasks(),
+      refreshFinances(),
+      refreshLiteratures(),
+      refreshSchedules(),
+      refreshGuidelines(),
+      refreshWarnings(),
+      refreshSOS(),
+    ]);
+  }, [refreshProfile, refreshMembers, refreshTasks, refreshFinances, refreshLiteratures, refreshSchedules, refreshGuidelines, refreshWarnings, refreshSOS]);
+
+  // =============================================
   // INITIAL DATA LOAD + REALTIME SUBSCRIPTIONS
   // =============================================
   useEffect(() => {
@@ -679,6 +760,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .channel('realtime-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => { refreshMembers(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'anggota_manual' }, () => { refreshMembers(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'anggota_link' }, () => { refreshMembers(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => { refreshTasks(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'finances' }, () => { refreshFinances(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'literatures' }, () => { refreshLiteratures(); })
@@ -694,7 +776,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      user, profile, currentRole, loading, signOut, updateProfile,
+      user, profile, currentRole, loading, signOut, updateProfile, refreshProfile,
       members, membersLoading, addMember, deleteMember, updateMemberRole, refreshMembers,
       tasks, tasksLoading, addTask, updateTaskStatus, updateTaskAssignee, submitTask, refreshTasks,
       finances, financesLoading, addFinance, deleteFinance, refreshFinances,
@@ -703,6 +785,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       guidelines, guidelinesLoading, addGuideline, deleteGuideline, refreshGuidelines,
       warnings, warningsLoading, addWarning, refreshWarnings,
       sosMessages, sosLoading, addSOS, refreshSOS,
+      refreshAllData,
     }}>
       {children}
     </AppContext.Provider>

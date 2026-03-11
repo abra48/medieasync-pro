@@ -116,3 +116,21 @@ CREATE POLICY "Authenticated users can delete schedules" ON schedules FOR DELETE
 CREATE POLICY "Authenticated users can insert reminders" ON reminders FOR INSERT TO authenticated WITH CHECK (true);
 
 CREATE POLICY "Authenticated users can insert sos_messages" ON sos_messages FOR INSERT TO authenticated WITH CHECK (true);
+
+-- ===============================================
+-- 8. Anggota Link table (members who joined via invite link)
+-- ===============================================
+CREATE TABLE IF NOT EXISTS anggota_link (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nama TEXT NOT NULL,
+  peran TEXT NOT NULL DEFAULT 'Anggota',
+  email TEXT,
+  invited_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE anggota_link ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read anggota_link" ON anggota_link FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert anggota_link" ON anggota_link FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update anggota_link" ON anggota_link FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete anggota_link" ON anggota_link FOR DELETE TO authenticated USING (true);
