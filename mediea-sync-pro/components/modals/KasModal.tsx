@@ -26,10 +26,15 @@ export default function KasModal() {
     e.preventDefault();
     if (!itemName.trim() || !price) return;
     setSubmitting(true);
-    await addFinance(itemName.trim(), parseInt(price));
-    setItemName('');
-    setPrice('');
-    setSubmitting(false);
+    try {
+      await addFinance(itemName.trim(), parseInt(price));
+      setItemName('');
+      setPrice('');
+    } catch (err) {
+      console.error('Failed to add finance:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

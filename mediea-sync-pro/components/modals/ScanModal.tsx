@@ -42,10 +42,15 @@ export default function ScanModal() {
     e.preventDefault();
     if (!name.trim()) return;
     setSubmitting(true);
-    await addMember(name.trim(), role);
-    setName('');
-    setRole('anggota');
-    setSubmitting(false);
+    try {
+      await addMember(name.trim(), role);
+      setName('');
+      setRole('anggota');
+    } catch (err) {
+      console.error('Failed to add member:', err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const generateInviteLink = () => {

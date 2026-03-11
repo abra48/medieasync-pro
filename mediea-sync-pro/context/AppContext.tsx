@@ -199,27 +199,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addMember = async (name: string, role: Role, email?: string) => {
-    // For members added by ketua (non-auth users), generate a random UUID
-    const { error } = await supabase.from('members').insert({
-      id: crypto.randomUUID(),
-      name,
-      role,
-      email: email || null,
-    });
-    if (!error) await refreshMembers();
+    try {
+      await supabase.from('members').insert({
+        id: crypto.randomUUID(),
+        name,
+        role,
+        email: email || null,
+      });
+    } catch (err) {
+      console.error('Failed to add member:', err);
+    } finally {
+      await refreshMembers();
+    }
   };
 
   const deleteMember = async (id: string) => {
-    const { error } = await supabase.from('members').delete().eq('id', id);
-    if (!error) await refreshMembers();
+    try {
+      await supabase.from('members').delete().eq('id', id);
+    } catch (err) {
+      console.error('Failed to delete member:', err);
+    } finally {
+      await refreshMembers();
+    }
   };
 
   const updateMemberRole = async (id: string, newRole: Role) => {
-    // Optimistic update
     setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
-    const { error } = await supabase.from('members').update({ role: newRole }).eq('id', id);
-    if (error) {
-      // Revert on error
+    try {
+      await supabase.from('members').update({ role: newRole }).eq('id', id);
+    } catch (err) {
+      console.error('Failed to update member role:', err);
+    } finally {
       await refreshMembers();
     }
   };
@@ -238,29 +248,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTask = async (taskName: string, assigneeId: string | null, assigneeName: string) => {
-    const { error } = await supabase.from('tasks').insert({
-      task_name: taskName,
-      assignee_id: assigneeId,
-      assignee_name: assigneeName,
-      status: 'Belum Dikerjakan',
-      file_url: '',
-    });
-    if (!error) await refreshTasks();
+    try {
+      await supabase.from('tasks').insert({
+        task_name: taskName,
+        assignee_id: assigneeId,
+        assignee_name: assigneeName,
+        status: 'Belum Dikerjakan',
+        file_url: '',
+      });
+    } catch (err) {
+      console.error('Failed to add task:', err);
+    } finally {
+      await refreshTasks();
+    }
   };
 
   const updateTaskStatus = async (id: string, status: TaskStatus) => {
-    const { error } = await supabase.from('tasks').update({ status }).eq('id', id);
-    if (!error) await refreshTasks();
+    try {
+      await supabase.from('tasks').update({ status }).eq('id', id);
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+    } finally {
+      await refreshTasks();
+    }
   };
 
   const updateTaskAssignee = async (id: string, assigneeId: string | null, assigneeName: string) => {
-    const { error } = await supabase.from('tasks').update({ assignee_id: assigneeId, assignee_name: assigneeName }).eq('id', id);
-    if (!error) await refreshTasks();
+    try {
+      await supabase.from('tasks').update({ assignee_id: assigneeId, assignee_name: assigneeName }).eq('id', id);
+    } catch (err) {
+      console.error('Failed to update task assignee:', err);
+    } finally {
+      await refreshTasks();
+    }
   };
 
   const updateTaskFile = async (id: string, fileUrl: string) => {
-    const { error } = await supabase.from('tasks').update({ file_url: fileUrl, status: 'Menunggu Konfirmasi' }).eq('id', id);
-    if (!error) await refreshTasks();
+    try {
+      await supabase.from('tasks').update({ file_url: fileUrl, status: 'Menunggu Konfirmasi' }).eq('id', id);
+    } catch (err) {
+      console.error('Failed to update task file:', err);
+    } finally {
+      await refreshTasks();
+    }
   };
 
   // --- Finances CRUD ---
@@ -277,17 +307,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addFinance = async (itemName: string, price: number) => {
-    const { error } = await supabase.from('finances').insert({
-      item_name: itemName,
-      price,
-      created_by: user?.id || null,
-    });
-    if (!error) await refreshFinances();
+    try {
+      await supabase.from('finances').insert({
+        item_name: itemName,
+        price,
+        created_by: user?.id || null,
+      });
+    } catch (err) {
+      console.error('Failed to add finance:', err);
+    } finally {
+      await refreshFinances();
+    }
   };
 
   const deleteFinance = async (id: string) => {
-    const { error } = await supabase.from('finances').delete().eq('id', id);
-    if (!error) await refreshFinances();
+    try {
+      await supabase.from('finances').delete().eq('id', id);
+    } catch (err) {
+      console.error('Failed to delete finance:', err);
+    } finally {
+      await refreshFinances();
+    }
   };
 
   // --- Project Settings CRUD ---
@@ -311,26 +351,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addRule = async (rule: string) => {
     const newRules = [...projectSettings.rules, rule];
-    const { error } = await supabase.from('project_settings').update({ rules: newRules }).eq('id', projectSettings.id);
-    if (!error) setProjectSettings(prev => ({ ...prev, rules: newRules }));
+    try {
+      await supabase.from('project_settings').update({ rules: newRules }).eq('id', projectSettings.id);
+      setProjectSettings(prev => ({ ...prev, rules: newRules }));
+    } catch (err) {
+      console.error('Failed to add rule:', err);
+      await refreshSettings();
+    }
   };
 
   const deleteRule = async (index: number) => {
     const newRules = projectSettings.rules.filter((_, i) => i !== index);
-    const { error } = await supabase.from('project_settings').update({ rules: newRules }).eq('id', projectSettings.id);
-    if (!error) setProjectSettings(prev => ({ ...prev, rules: newRules }));
+    try {
+      await supabase.from('project_settings').update({ rules: newRules }).eq('id', projectSettings.id);
+      setProjectSettings(prev => ({ ...prev, rules: newRules }));
+    } catch (err) {
+      console.error('Failed to delete rule:', err);
+      await refreshSettings();
+    }
   };
 
   const addLink = async (title: string, url: string) => {
     const newLinks = [...projectSettings.links, { title, url }];
-    const { error } = await supabase.from('project_settings').update({ links: newLinks }).eq('id', projectSettings.id);
-    if (!error) setProjectSettings(prev => ({ ...prev, links: newLinks }));
+    try {
+      await supabase.from('project_settings').update({ links: newLinks }).eq('id', projectSettings.id);
+      setProjectSettings(prev => ({ ...prev, links: newLinks }));
+    } catch (err) {
+      console.error('Failed to add link:', err);
+      await refreshSettings();
+    }
   };
 
   const deleteLink = async (index: number) => {
     const newLinks = projectSettings.links.filter((_, i) => i !== index);
-    const { error } = await supabase.from('project_settings').update({ links: newLinks }).eq('id', projectSettings.id);
-    if (!error) setProjectSettings(prev => ({ ...prev, links: newLinks }));
+    try {
+      await supabase.from('project_settings').update({ links: newLinks }).eq('id', projectSettings.id);
+      setProjectSettings(prev => ({ ...prev, links: newLinks }));
+    } catch (err) {
+      console.error('Failed to delete link:', err);
+      await refreshSettings();
+    }
   };
 
   // --- Schedules CRUD ---
@@ -347,13 +407,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addSchedule = async (date: string, event: string) => {
-    const { error } = await supabase.from('schedules').insert({ date, event });
-    if (!error) await refreshSchedules();
+    try {
+      await supabase.from('schedules').insert({ date, event });
+    } catch (err) {
+      console.error('Failed to add schedule:', err);
+    } finally {
+      await refreshSchedules();
+    }
   };
 
   const deleteSchedule = async (id: string) => {
-    const { error } = await supabase.from('schedules').delete().eq('id', id);
-    if (!error) await refreshSchedules();
+    try {
+      await supabase.from('schedules').delete().eq('id', id);
+    } catch (err) {
+      console.error('Failed to delete schedule:', err);
+    } finally {
+      await refreshSchedules();
+    }
   };
 
   // --- Reminders CRUD ---
@@ -370,12 +440,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addReminder = async (toName: string, message: string) => {
-    const { error } = await supabase.from('reminders').insert({
-      to_name: toName,
-      message,
-      sent_by: user?.id || null,
-    });
-    if (!error) await refreshReminders();
+    try {
+      await supabase.from('reminders').insert({
+        to_name: toName,
+        message,
+        sent_by: user?.id || null,
+      });
+    } catch (err) {
+      console.error('Failed to add reminder:', err);
+    } finally {
+      await refreshReminders();
+    }
   };
 
   // --- SOS CRUD ---
@@ -392,12 +467,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addSOS = async (fromName: string, message: string) => {
-    const { error } = await supabase.from('sos_messages').insert({
-      from_name: fromName,
-      message,
-      sent_by: user?.id || null,
-    });
-    if (!error) await refreshSOS();
+    try {
+      await supabase.from('sos_messages').insert({
+        from_name: fromName,
+        message,
+        sent_by: user?.id || null,
+      });
+    } catch (err) {
+      console.error('Failed to add SOS message:', err);
+    } finally {
+      await refreshSOS();
+    }
   };
 
   // --- Initial Data Load (after auth) + Realtime Subscriptions ---
