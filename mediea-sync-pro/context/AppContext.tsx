@@ -28,6 +28,7 @@ interface AppContextType {
   addTask: (taskName: string, assigneeName: string) => Promise<void>;
   updateTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
   updateTaskAssignee: (id: string, assigneeName: string) => Promise<void>;
+  submitTask: (taskId: string, file: File | null, note: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
 
   // Finances (tabel: finances — kolom: item_name, price, invited_by)
@@ -194,8 +195,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const u = session?.user || null;
       if (!u) {
-        setUser(null);
-        setProfile(null);
+        // Don't clear state on tab switch / visibility change — only on explicit SIGNED_OUT
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+        }
         return;
       }
 
@@ -293,8 +297,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateMemberRole = async (id: string, newRole: Role) => {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
     try {
-      const { error: manualError } = await supabase.from('anggota_manual').update({ peran: newRole }).eq('id', id);
-      if (manualError) {
+      // Try updating anggota_manual first, check if any row was actually updated
+      const { data: manualData, error: manualError } = await supabase
+        .from('anggota_manual').update({ peran: newRole }).eq('id', id).select();
+
+      // If no rows updated in anggota_manual (member joined via invite link), update members table
+      if (manualError || !manualData || manualData.length === 0) {
         const { error: authError } = await supabase.from('members').update({ role: newRole }).eq('id', id);
         if (authError) throw new Error(authError.message);
       }
@@ -361,6 +369,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Failed to update task assignee:', err);
       alert('Gagal mengubah penanggung jawab: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    } finally {
+      await refreshTasks();
+    }
+  };
+
+  const submitTask = async (taskId: string, file: File | null, note: string) => {
+    if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
+    try {
+      let fileUrl = '';
+      if (file) {
+        const filePath = `${user.id}/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage.from('task_files').upload(filePath, file);
+        if (uploadError) throw new Error('Gagal upload file: ' + uploadError.message);
+        const { data: publicUrlData } = supabase.storage.from('task_files').getPublicUrl(filePath);
+        fileUrl = publicUrlData.publicUrl;
+      }
+      const { error } = await supabase.from('tasks').update({
+        status: 'Menunggu Konfirmasi',
+        file_url: fileUrl,
+        submission_note: note,
+      }).eq('id', taskId);
+      if (error) throw new Error(error.message);
+    } catch (err) {
+      console.error('Failed to submit task:', err);
+      alert('Gagal mengirim tugas: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
     } finally {
       await refreshTasks();
     }
@@ -663,7 +696,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       user, profile, currentRole, loading, signOut, updateProfile,
       members, membersLoading, addMember, deleteMember, updateMemberRole, refreshMembers,
-      tasks, tasksLoading, addTask, updateTaskStatus, updateTaskAssignee, refreshTasks,
+      tasks, tasksLoading, addTask, updateTaskStatus, updateTaskAssignee, submitTask, refreshTasks,
       finances, financesLoading, addFinance, deleteFinance, refreshFinances,
       literatures, literaturesLoading, addLiterature, deleteLiterature, refreshLiteratures,
       schedules, schedulesLoading, addSchedule, deleteSchedule, refreshSchedules,

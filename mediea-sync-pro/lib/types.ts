@@ -17,6 +17,8 @@ export interface Task {
   task_name: string;
   assignee_name: string;
   status: TaskStatus;
+  file_url?: string;
+  submission_note?: string;
   invited_by?: string;
   created_at?: string;
 }
