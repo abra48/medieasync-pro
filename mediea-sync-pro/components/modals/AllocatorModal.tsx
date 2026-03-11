@@ -97,7 +97,7 @@ export default function AllocatorModal() {
             <div key={task.id} className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 hover:border-white/10 transition-colors">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-[#fafafa]">{task.title}</p>
+                  <p className="text-sm font-medium text-[#fafafa]">{task.task_name}</p>
                   <p className="text-xs text-[#8c8c8e] mt-0.5">
                     {task.assignee_name ? `Ditugaskan: ${task.assignee_name}` : 'Belum ada penanggung jawab'}
                   </p>

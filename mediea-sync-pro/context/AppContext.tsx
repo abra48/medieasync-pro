@@ -25,7 +25,7 @@ interface AppContextType {
   // Tasks (tabel: tasks — kolom: title, assignee_name, status, invited_by)
   tasks: Task[];
   tasksLoading: boolean;
-  addTask: (title: string, assigneeName: string) => Promise<void>;
+  addTask: (taskName: string, assigneeName: string) => Promise<void>;
   updateTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
   updateTaskAssignee: (id: string, assigneeName: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
@@ -307,11 +307,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const addTask = async (title: string, assigneeName: string) => {
+  const addTask = async (taskName: string, assigneeName: string) => {
     if (!user) { alert('Sesi login tidak ditemukan. Silakan login ulang.'); return; }
     try {
       const { error } = await supabase.from('tasks').insert({
-        title,
+        task_name: taskName,
         assignee_name: assigneeName,
         status: 'Belum Dikerjakan',
         invited_by: user.id,

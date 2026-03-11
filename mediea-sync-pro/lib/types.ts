@@ -14,7 +14,7 @@ export type TaskStatus = 'Belum Dikerjakan' | 'Menunggu Konfirmasi' | 'Selesai';
 
 export interface Task {
   id: string;
-  title: string;
+  task_name: string;
   assignee_name: string;
   status: TaskStatus;
   invited_by?: string;

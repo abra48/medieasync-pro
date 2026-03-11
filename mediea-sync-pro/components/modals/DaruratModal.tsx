@@ -48,7 +48,7 @@ export default function DaruratModal() {
               className="w-full rounded-lg bg-[#1e252b] border border-white/10 px-3 py-2 text-sm text-[#fafafa] focus:outline-none focus:border-[#10b981]/50">
               <option value="">-- Pilih tugas yang macet --</option>
               {stuckTasks.map((t) => (
-                <option key={t.id} value={t.id}>{t.title} ({t.assignee_name || 'belum ditugaskan'})</option>
+                <option key={t.id} value={t.id}>{t.task_name} ({t.assignee_name || 'belum ditugaskan'})</option>
               ))}
             </select>
             <select value={newAssigneeId} onChange={(e) => setNewAssigneeId(e.target.value)}
@@ -76,7 +76,7 @@ export default function DaruratModal() {
         ) : stuckTasks.map((task) => (
           <div key={task.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-[#fafafa]">{task.title}</p>
+              <p className="text-sm font-medium text-[#fafafa]">{task.task_name}</p>
               <p className="text-xs text-[#8c8c8e] mt-0.5">{task.assignee_name || 'Belum ditugaskan'} • {task.status}</p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-400">

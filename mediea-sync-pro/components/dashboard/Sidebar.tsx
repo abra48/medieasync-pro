@@ -114,7 +114,7 @@ export default function Sidebar() {
                 {memberTasks.length > 0 ? (
                   memberTasks.map((task) => (
                     <p key={task.id} className="text-xs text-[#8c8c8e] ml-7 mt-0.5 truncate">
-                      ↳ {task.title}
+                      ↳ {task.task_name}
                     </p>
                   ))
                 ) : (
