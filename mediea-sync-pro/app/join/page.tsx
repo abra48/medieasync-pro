@@ -37,15 +37,20 @@ function JoinContent() {
       setStatus('joining');
       const { data: existingMember } = await supabase
         .from('members')
-        .select('id')
+        .select('id, invited_by')
         .eq('id', user.id)
         .single();
 
       if (existingMember) {
-        // Already a member, just redirect
+        // If member exists but has no invited_by, update it with the current ref
+        const refId = ref || localStorage.getItem('mediea_join_ref') || null;
+        if (!existingMember.invited_by && refId) {
+          await supabase.from('members').update({ invited_by: refId }).eq('id', user.id);
+        }
         setStatus('already_member');
         localStorage.removeItem('mediea_join_ref');
-        setTimeout(() => router.replace('/dashboard'), 1500);
+        localStorage.removeItem('mediea_join_pending');
+        setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
         return;
       }
 
@@ -69,6 +74,7 @@ function JoinContent() {
 
       // Clean up localStorage
       localStorage.removeItem('mediea_join_ref');
+      localStorage.removeItem('mediea_join_pending');
 
       if (error) {
         setStatus('error');
@@ -77,7 +83,7 @@ function JoinContent() {
       }
 
       setStatus('success');
-      setTimeout(() => router.replace('/dashboard'), 1500);
+      setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
     };
 
     processJoin();
