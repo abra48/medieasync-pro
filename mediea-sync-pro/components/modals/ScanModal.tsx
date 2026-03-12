@@ -174,8 +174,8 @@ export default function ScanModal() {
             className="flex items-center justify-between rounded-xl bg-white/5 border border-white/5 px-4 py-3 hover:border-white/10 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-[#10b981]/10 flex items-center justify-center text-sm font-bold text-[#10b981]">
-                {member.name.charAt(0)}
+              <div className="h-8 w-8 rounded-full bg-[#10b981]/10 flex items-center justify-center overflow-hidden shrink-0">
+                <img src="https://image2url.com/r2/default/images/1773277268169-adfa5381-c427-4ffc-9161-e6991fa138ed.png" alt="Mediea Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <p className="text-sm font-medium text-[#fafafa]">{member.name}</p>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Infinity, ArrowRight, Zap, Users, BarChart3, Shield, Menu, Scale, Clock, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Zap, Users, BarChart3, Shield, Menu, Scale, Clock, ShieldCheck } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -9,8 +9,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#10b981]/10">
-                <Infinity className="h-5 w-5 text-[#10b981]" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10b981]/10 p-1.5 overflow-hidden shrink-0">
+                <img src="https://image2url.com/r2/default/images/1773277268169-adfa5381-c427-4ffc-9161-e6991fa138ed.png" alt="Mediea Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <span className="text-xl font-bold tracking-tight text-[#fafafa]">
                 MEDIEA<span className="text-[#10b981]">.</span>
@@ -270,8 +270,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#10b981]/10">
-                <Infinity className="h-4 w-4 text-[#10b981]" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10b981]/10 p-1.5 overflow-hidden shrink-0">
+                <img src="https://image2url.com/r2/default/images/1773277268169-adfa5381-c427-4ffc-9161-e6991fa138ed.png" alt="Mediea Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <span className="text-sm font-bold text-[#fafafa]">MEDIEA<span className="text-[#10b981]">.</span></span>
             </div>

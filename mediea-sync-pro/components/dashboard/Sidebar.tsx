@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Infinity, ArrowLeft, LogOut, User, Menu, X, Settings, Sun, Moon } from 'lucide-react';
+import { ArrowLeft, LogOut, User, Menu, X, Settings, Sun, Moon } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import ProgressBar from '@/components/ui/ProgressBar';
 import RoleBadge from '@/components/ui/RoleBadge';
@@ -45,8 +45,8 @@ export default function Sidebar() {
       {/* Profile section */}
       <div className="px-5 py-6 border-b border-white/5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#10b981] to-[#059669] shadow-lg shadow-[#10b981]/20">
-            <Infinity className="h-6 w-6 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10b981]/10 p-1.5 overflow-hidden shrink-0">
+            <img src="https://image2url.com/r2/default/images/1773277268169-adfa5381-c427-4ffc-9161-e6991fa138ed.png" alt="Mediea Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div>
             <h2 className="text-sm font-bold text-[#fafafa]">Mediea Sync</h2>
@@ -60,8 +60,8 @@ export default function Sidebar() {
           className="w-full mt-4 rounded-xl bg-[#2c2c38] border border-white/10 p-3 text-left hover:border-[#10b981]/30 transition-colors group"
         >
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-9 w-9 rounded-full bg-[#10b981]/10 flex items-center justify-center text-sm font-bold text-[#10b981]">
-              {profile?.name?.charAt(0)?.toUpperCase() || '?'}
+            <div className="h-9 w-9 rounded-full bg-[#10b981]/10 flex items-center justify-center overflow-hidden shrink-0">
+              <img src="https://image2url.com/r2/default/images/1773277268169-adfa5381-c427-4ffc-9161-e6991fa138ed.png" alt="Mediea Logo" className="w-full h-full object-contain" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[#fafafa] truncate">{profile?.name || 'Memuat data...'}</p>

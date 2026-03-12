@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Infinity, LogIn, UserPlus, ArrowLeft } from 'lucide-react';
+import { LogIn, UserPlus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 
@@ -73,8 +73,8 @@ function LoginContent() {
         <div className="rounded-2xl bg-[#2c2c38] border border-white/5 p-8 shadow-2xl shadow-[#10b981]/5">
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#10b981] to-[#059669] shadow-lg shadow-[#10b981]/20">
-              <Infinity className="h-6 w-6 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#10b981]/10 p-1.5 overflow-hidden shrink-0">
+              <img src="https://image2url.com/r2/default/images/1773277268169-adfa5381-c427-4ffc-9161-e6991fa138ed.png" alt="Mediea Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <span className="text-2xl font-bold text-[#fafafa]">MEDIEA<span className="text-[#10b981]">.</span></span>
           </div>
