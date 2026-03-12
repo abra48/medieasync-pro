@@ -134,3 +134,21 @@ CREATE POLICY "Authenticated users can read anggota_link" ON anggota_link FOR SE
 CREATE POLICY "Authenticated users can insert anggota_link" ON anggota_link FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated users can update anggota_link" ON anggota_link FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Authenticated users can delete anggota_link" ON anggota_link FOR DELETE TO authenticated USING (true);
+
+-- ===============================================
+-- 9. Kas Payments table (per-member payment tracking)
+-- ===============================================
+CREATE TABLE IF NOT EXISTS kas_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id TEXT NOT NULL,
+  member_name TEXT NOT NULL,
+  paid BOOLEAN DEFAULT FALSE,
+  invited_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE kas_payments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read kas_payments" ON kas_payments FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert kas_payments" ON kas_payments FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update kas_payments" ON kas_payments FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete kas_payments" ON kas_payments FOR DELETE TO authenticated USING (true);

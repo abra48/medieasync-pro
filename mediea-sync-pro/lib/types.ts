@@ -70,6 +70,14 @@ export interface SOSMessage {
   created_at?: string;
 }
 
+export interface KasPayment {
+  id: string;
+  member_id: string;
+  member_name: string;
+  paid: boolean;
+  invited_by?: string;
+}
+
 export interface ServiceItem {
   id: string;
   title: string;

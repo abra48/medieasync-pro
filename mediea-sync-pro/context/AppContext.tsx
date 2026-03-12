@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { Role, Member, Task, Finance, TaskStatus, Schedule, Literature, Guideline, Warning, SOSMessage } from '@/lib/types';
+import { Role, Member, Task, Finance, TaskStatus, Schedule, Literature, Guideline, Warning, SOSMessage, KasPayment } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -72,6 +72,13 @@ interface AppContextType {
   addSOS: (fromName: string, message: string) => Promise<void>;
   refreshSOS: () => Promise<void>;
 
+  // Kas Payments
+  kasPayments: KasPayment[];
+  kasPaymentsLoading: boolean;
+  refreshKasPayments: () => Promise<void>;
+  toggleKasPayment: (id: string, paid: boolean) => Promise<void>;
+  syncKasPayments: () => Promise<void>;
+
   // Refresh all data at once
   refreshAllData: () => Promise<void>;
 }
@@ -104,6 +111,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [warningsLoading, setWarningsLoading] = useState(false);
   const [sosMessages, setSosMessages] = useState<SOSMessage[]>([]);
   const [sosLoading, setSosLoading] = useState(false);
+  const [kasPayments, setKasPayments] = useState<KasPayment[]>([]);
+  const [kasPaymentsLoading, setKasPaymentsLoading] = useState(false);
 
   const currentRole: Role = profile?.role || 'anggota';
 
@@ -740,6 +749,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // =============================================
+  // KAS PAYMENTS CRUD (tabel: kas_payments)
+  // =============================================
+  const refreshKasPayments = useCallback(async () => {
+    if (!user || !groupOwnerId) return;
+    setKasPaymentsLoading(true);
+    try {
+      const { data, error } = await supabase.from('kas_payments').select('*')
+        .eq('invited_by', groupOwnerId);
+      if (error) { console.error('Fetch kas_payments error:', error.message); return; }
+      if (data) setKasPayments(data as KasPayment[]);
+    } catch (err) {
+      console.error('Failed to fetch kas payments:', err);
+    } finally {
+      setKasPaymentsLoading(false);
+    }
+  }, [user, groupOwnerId]);
+
+  const toggleKasPayment = async (id: string, paid: boolean) => {
+    // Optimistic update
+    setKasPayments(prev => prev.map(kp => kp.id === id ? { ...kp, paid } : kp));
+    try {
+      const { error } = await supabase.from('kas_payments').update({ paid }).eq('id', id);
+      if (error) throw new Error(error.message);
+    } catch (err) {
+      console.error('Failed to toggle kas payment:', err);
+      alert('Gagal mengubah status pembayaran: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    } finally {
+      await refreshKasPayments();
+    }
+  };
+
+  const syncKasPayments = async () => {
+    if (!user || !groupOwnerId) return;
+    try {
+      // Get existing payment records
+      const { data: existing, error: fetchErr } = await supabase.from('kas_payments').select('member_id')
+        .eq('invited_by', groupOwnerId);
+      if (fetchErr) throw new Error(fetchErr.message);
+
+      const existingIds = new Set((existing || []).map((kp: { member_id: string }) => kp.member_id));
+
+      // Find members who don't have a payment record yet
+      const toInsert = members.filter(m => !existingIds.has(m.id)).map(m => ({
+        member_id: m.id,
+        member_name: m.name,
+        paid: false,
+        invited_by: groupOwnerId,
+      }));
+
+      if (toInsert.length > 0) {
+        const { error: insertErr } = await supabase.from('kas_payments').insert(toInsert);
+        if (insertErr) throw new Error(insertErr.message);
+      }
+    } catch (err) {
+      console.error('Failed to sync kas payments:', err);
+      alert('Gagal menyinkronkan anggota: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    } finally {
+      await refreshKasPayments();
+    }
+  };
+
+  // =============================================
   // REFRESH ALL DATA AT ONCE
   // =============================================
   const refreshAllData = useCallback(async () => {
@@ -753,8 +824,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshGuidelines(),
       refreshWarnings(),
       refreshSOS(),
+      refreshKasPayments(),
     ]);
-  }, [refreshProfile, refreshMembers, refreshTasks, refreshFinances, refreshLiteratures, refreshSchedules, refreshGuidelines, refreshWarnings, refreshSOS]);
+  }, [refreshProfile, refreshMembers, refreshTasks, refreshFinances, refreshLiteratures, refreshSchedules, refreshGuidelines, refreshWarnings, refreshSOS, refreshKasPayments]);
 
   // =============================================
   // INITIAL DATA LOAD + REALTIME SUBSCRIPTIONS
@@ -770,6 +842,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshGuidelines();
     refreshWarnings();
     refreshSOS();
+    refreshKasPayments();
 
     const channel = supabase
       .channel('realtime-sync')
@@ -782,12 +855,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, () => { refreshSchedules(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'guidelines' }, () => { refreshGuidelines(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'warnings' }, () => { refreshWarnings(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kas_payments' }, () => { refreshKasPayments(); })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, refreshMembers, refreshTasks, refreshFinances, refreshLiteratures, refreshSchedules, refreshGuidelines, refreshWarnings, refreshSOS]);
+  }, [user, refreshMembers, refreshTasks, refreshFinances, refreshLiteratures, refreshSchedules, refreshGuidelines, refreshWarnings, refreshSOS, refreshKasPayments]);
 
   return (
     <AppContext.Provider value={{
@@ -800,6 +874,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       guidelines, guidelinesLoading, addGuideline, deleteGuideline, refreshGuidelines,
       warnings, warningsLoading, addWarning, refreshWarnings,
       sosMessages, sosLoading, addSOS, refreshSOS,
+      kasPayments, kasPaymentsLoading, refreshKasPayments, toggleKasPayment, syncKasPayments,
       refreshAllData,
     }}>
       {children}
